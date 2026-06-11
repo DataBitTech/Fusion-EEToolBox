@@ -58,31 +58,29 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
         self._stitching_points_cache = []
 
 
-    # add button to the UI
     def add_command_button_to_ui(self, commandDefinition: adsk.core.CommandDefinition):
         """Adds the command button to the UI.
-
+        
         See the base class method for full details.
         """
         eetbControls.add_command_to_panel(config.ELECTRON_LAYOUT_ENV_ID, eetbControls.LayoutPanel.PATTERNS_PANEL, commandDefinition)
 
-
-    def on_command_destroy(self, args: adsk.core.CommandEventArgs):
-        """
-        Event handler for when the command is destroyed.
-
+ 
+    def close_palette(self):
+        """Handles command-specific cleanup and closes the palette.
+        
         See the base class method for full details.
-
-        Args:
-            args: CommandEventArgs
         """
+        if self._stitching_points_cache:
+            self._stitching_points_cache = []
+            self.run_eagle_command('UNDO')
         try:
             if os.path.exists(self._script_export_path):
                 os.remove(self._script_export_path)
         except Exception as e:
             self.log_error_to_ui(f"Error deleting script file: {str(e)}")
         
-        super().on_command_destroy(args)
+        super().close_palette()
 
 
     def palette_ready_event_handler(self, palette: adsk.core.Palette):
@@ -128,9 +126,6 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
             event_data (dict, optional): Additional data associated with the event. Defaults to {}.
         """
         if event_name == 'cancelButtonClicked':
-            if self._stitching_points_cache:
-                self.run_eagle_command('UNDO')
-                self._stitching_points_cache = []
             self.close_palette()
         elif event_name in ['doShowPreview', 'okButtonClicked']:
             # do some sanity checks
@@ -527,7 +522,7 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
 
 
     def _write_preview_script(self, stitching_points: list[tuple[float, float]], event_data: dict):
-        """Write an Eagle script that draws circles on th preview layer for preview purposes.
+        """Write an Eagle script that draws circles on the preview layer for preview purposes.
 
         Args:
             stitching_points (list): List of coordinate pairs (x, y) where vias should be placed
@@ -546,12 +541,17 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
         if self._stitching_points_cache:
             script += 'UNDO;\n'
             self._stitching_points_cache = []
+        
+        # we need to switch to the units used in the export data - in case of INCH or CM user grid, it
+        # does not match, because the export data is currently only MM or MIL
+        script += f'GRID {'10' if self._grid_unit == eetbutil.LengthUnits.MIL else '0.5'} {self._grid_unit.value};\n'
         script += f"CHANGE LAYER {event_data.get('preview_layer', '')};\n"
         
         # Draw circles at each stitching point
         for x, y in stitching_points:
             script += f"CIRCLE {annular_ring} ({x} {y}) ({x + diameter_mm/2 + annular_ring/2} {y});\n"
-        
+        script += "GRID LAST;\n"
+
         # Write the script command to the temporary file
         with open(self._script_export_path, 'w') as f:
             f.write(script)
@@ -580,11 +580,13 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
         if self._stitching_points_cache:
             script += 'UNDO;\n'
             self._stitching_points_cache = []
+        script += f'GRID {'10' if self._grid_unit == eetbutil.LengthUnits.MIL else '0.5'} {self._grid_unit.value};\n'
         script += f'CHANGE DRILL {drill};\n'
         
         # Add via at each stitching point
         for x, y in stitching_points:
             script += f"VIA '{event_data.get('via_net', '')}' ({x} {y});\n"
+        script += "GRID LAST;\n"
         
         # Write the script command to the temporary file
         with open(self._script_export_path, 'w') as f:
