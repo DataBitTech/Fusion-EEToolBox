@@ -19,6 +19,11 @@
         window.editMode = false;
         window.sortableInstance = null;
 
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-edit').src = window.icon_path + "EditShortcut/16x16.png";
+            document.getElementById('btn-cancel').src = window.icon_path + "Delete/16x16.png";
+        });
+
         // FUSION 360 HANDLER
         window.fusionJavaScriptHandler = {
             handle: function (action, data) {
@@ -150,7 +155,7 @@
 
                 if (editMode) {
                     const trashBtn = document.createElement('img');
-                    trashBtn.src = '../../../lib/eetbUtils/icons/trash/16x16.svg';
+                    trashBtn.src = icon_path + 'DeleteShortcut/16x16.png';
                     trashBtn.className = 'row-btn';
                     trashBtn.onclick = function() {
                         window.checklistItems_editing.splice(index, 1);
@@ -192,6 +197,7 @@
         }
 
         function updateFooterButtons() {
+            const btnClear = document.getElementById('btn-clear');
             const btnEdit = document.getElementById('btn-edit');
             const btnAddItem = document.getElementById('btn-add-item');
             const btnAddSeparator = document.getElementById('btn-add-separator');
@@ -200,12 +206,14 @@
 
             if (window.editMode) {
                 btnEdit.classList.add('disabled');
+                btnClear.classList.add('disabled');
                 btnAddItem.classList.remove('disabled');
                 btnAddSeparator.classList.remove('disabled');
                 btnAccept.classList.remove('disabled');
                 btnCancel.classList.remove('disabled');
             } else {
                 btnEdit.classList.remove('disabled');
+                btnClear.classList.remove('disabled');
                 btnAddItem.classList.add('disabled');
                 btnAddSeparator.classList.add('disabled');
                 btnAccept.classList.add('disabled');
@@ -250,6 +258,14 @@
             updateFooterButtons();
             renderItems();
         }
+
+        function clearChecklist() {
+            if (confirm("Are you sure you want to clear all checked items?")) {
+                window.checkedItemIds = [];
+                adsk.fusionSendData('checkedStateChanged', JSON.stringify(window.checkedItemIds));
+                renderItems();
+            }
+        }
     </script>
 </head>
 <body class="dark-theme">
@@ -258,11 +274,18 @@
     </div>
 
     <div class="footer option-icon-group">
+        <!-- The src attribute will be defined in JavaScript -->
+        <img id="btn-clear" class="option-icon" 
+             src="./clear_16x16.svg" 
+             onclick="clearChecklist()" 
+             title="Clear Checklist">
+
+        <!-- The src attribute will be defined in JavaScript -->
         <img id="btn-edit" class="option-icon" 
-             src="../../../lib/eetbUtils/icons/EditShortcut/16x16.png"
+             src="" 
              onclick="startEdit()" 
              title="Edit Checklist">
-        
+
         <img id="btn-add-item" class="option-icon disabled" 
              src="./add_list_item.png" 
              onclick="addItem(false)" 
@@ -273,8 +296,9 @@
              onclick="addItem(true)" 
              title="Add Separator">
 
+        <!-- The src attribute will be defined in JavaScript -->
         <img id="btn-cancel" class="option-icon disabled" 
-             src="../../../lib/eetbUtils/icons/Delete/16x16.png" 
+             src=""
              onclick="cancelEdit()" 
              title="Cancel Changes">
 

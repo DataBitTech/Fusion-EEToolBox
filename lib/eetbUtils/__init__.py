@@ -65,7 +65,7 @@ def generate_js_include() -> None:
     """
     try:
         app = adsk.core.Application.get()
-        icon_path = config.EETB_COMMON_ICON_DIR.replace('\\', '/')
+        icon_path = config.EETB_COMMON_ICON_DIR.replace('\\', '/') + '/'
 
         # generate file content first
         js_content = "/* THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT! */\n"
