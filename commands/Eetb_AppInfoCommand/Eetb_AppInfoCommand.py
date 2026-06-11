@@ -28,6 +28,8 @@
 import adsk.core
 import os
 import json
+import urllib.request
+import urllib.error
 
 from ... import config, controls
 from ..CommandBase import CommandBase
@@ -36,17 +38,19 @@ from ...lib import eetbUtils as eetbutil
 
 class Eetb_AppInfoCommand(CommandBase):
 
-    def __init__(self):
+    def __init__(self, isUpdateAvailable: bool):
         command_attributes = CommandBase.MandatoryCommandAttributes(
             command_id = f'{config.ADDIN_NAME}_app_info_command_id',
-            command_name = 'About',
+            command_name = f'About{' - new version available!' if isUpdateAvailable else ''}',
             command_description = 'Information about the Electronics Extended Toolbox',
             
             # Paths
-            icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources'),
+            icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'updateable' if isUpdateAvailable else 'latest'),
             json_temp_path = os.path.join(config.TEMP_DIR, f'fusion360_{__class__.__qualname__}_extracted_data.json'))
         super().__init__(command_attributes)
 
+        self._isUpdateAvailable = isUpdateAvailable
+        
         # Get version from manifest
         self._version = 'Unknown'
         try:
@@ -58,10 +62,18 @@ class Eetb_AppInfoCommand(CommandBase):
         except Exception:
             pass
 
+        # construct the version text
+        rel_notes_link = self._get_release_notes_link()
+        self._version_text = f'<h2>Electronics Extended Toolbox</h2><p><h3>Version: {self._version}'
+        if isUpdateAvailable:
+            self._version_text += f'  <a href={config.APP_STORE_LINK_WIN64 if os.name == 'nt' else config.APP_STORE_LINK_MAC}>New version available!</a>'
+        elif rel_notes_link:
+            self._version_text += f'  <a href={rel_notes_link}>Release notes</a>'
+        self._version_text += '</h3></p>'
+
+
         # info text
-        self._info_text = f"""
-            <h2>Electronics Extended Toolbox</h2>
-            <p><h3>Version: {self._version}</h3></p>
+        self._info_text = """
             <p>This is an open-source Fusion 360 add-in designed to extend the capabilities of the Electronics workspace. It provides additional tools and utilities for electronic design and documentation.</p>
             
             <p>Contributions are welcome! You can find the source code and contribute at our <a href="https://github.com/DataBitTech/Fusion-EEToolBox">GitHub repository</a>.</p>
@@ -104,4 +116,47 @@ class Eetb_AppInfoCommand(CommandBase):
         cmd.isOKButtonVisible = False
         cmd.cancelButtonText = 'Close'
 
-        inputs.addTextBoxCommandInput('info_text', '', self._info_text, 20, True)
+        checkUpdateOnStartup = eetbutil.config_manager.get_global_option('add-in', 'checkUpdateOnStartup', True)
+        if checkUpdateOnStartup is None:
+            checkUpdateOnStartup = True
+
+        inputs.addTextBoxCommandInput('txtbx_versionText', '', self._version_text, 3, True)
+            
+        self._checkUpdateChkbx = inputs.addBoolValueInput('chkbx_checkUpdateOnStartup', '   Check for updates on startup', True, '', checkUpdateOnStartup)
+        inputs.addTextBoxCommandInput('txtbx_infoText', '', self._info_text, 17, True)
+
+
+    def on_command_destroy(self, args: adsk.core.CommandEventArgs) -> None:
+        """
+        Event handler for when the command is destroyed.
+
+        This method is called when the command is closed or destroyed.
+
+        Args:
+            args: CommandEventArgs - The event arguments for the command destruction.
+        """
+        eetbutil.config_manager.store_global_option('add-in', 'checkUpdateOnStartup', self._checkUpdateChkbx.value)
+        return super().on_command_destroy(args)
+    
+
+    def _get_release_notes_link(self) -> str:
+        """
+        Retrieves the release notes link for the current version of the add-in.
+
+        Returns:
+            str: The URL to the release notes page.
+        """
+        # Construct the release notes URL
+        url = f'https://github.com/DataBitTech/Fusion-EEToolBox/releases/tag/APP_STORE_RELEASE_{self._version.replace(".", "_")}'
+
+        try:
+            # Attempt to fetch the URL to check if it exists
+            response = urllib.request.urlopen(url)
+            if response.getcode() == 200:
+                return url
+            else:
+                return ''
+        except urllib.error.HTTPError:
+            return ''
+        except Exception:
+            return ''

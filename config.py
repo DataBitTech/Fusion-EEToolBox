@@ -39,3 +39,7 @@ ULP_DIR: str = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__fi
 EETB_COMMON_ICON_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'eetbUtils', 'icons'))
 ELECTRON_COMMON_ICON_DIR = os.path.join(adsk.core.Application.get().applicationFolders.rootPath, 'Electron', 'UI', 'Resources', 'Icons')
 FUSION_COMMON_ICON_DIR = os.path.join(adsk.core.Application.get().applicationFolders.rootPath, 'Fusion', 'UI', 'FusionUI', 'Resources')
+
+# App store links
+APP_STORE_LINK_WIN64 = 'https://marketplace.autodesk.com/apps/1ab36649-512f-4797-9bdc-68179270dac9?priceId=85abea3a-13a8-444f-a41c-9bd409506c40'
+APP_STORE_LINK_MAC   = 'https://marketplace.autodesk.com/apps/7fa2b512-d2b1-4e0c-8076-def8fdc63ebc?priceId=b5001295-273e-437b-8271-46be2d927309'

@@ -25,6 +25,8 @@
 #======================================================
 
 import adsk.core
+from ..lib import eetbUtils as eetbutil
+from .check_updates import *
 
 # If you want to add an additional command, duplicate one of the existing directories and import it here.
 from .CommandBase import CommandBase
@@ -49,6 +51,16 @@ from .Eetb_ChecklistCommand.Eetb_ChecklistCommand import Eetb_ChecklistCommand
 from .Eetb_AttributeRenameDeleteCommand.Eetb_AttributeRenameDeleteCommand import Eetb_AttributeRenameDeleteCommand
 from .Eetb_AttributeAddCopyCommand.Eetb_AttributeAddCopyCommand import Eetb_AttributeAddCopyCommand
 
+# handle checking for updates
+checkUpdateOnStartup = eetbutil.config_manager.get_global_option('add-in', 'checkUpdateOnStartup', True)
+if checkUpdateOnStartup is None:
+    checkUpdateOnStartup = True
+
+isUpdateAvailable = False
+if checkUpdateOnStartup:
+    current_version = get_current_version()
+    appstore_version = get_latest_version_from_autodesk_marketplace()
+    isUpdateAvailable = compare_versions(current_version, appstore_version)
 
 # these commands are also input to other command constructors
 script_execute_command = Eetb_ExecuteEagleScriptCommand()
@@ -76,7 +88,7 @@ commands: list[CommandBase]  = [
     Eetb_AttributeRenameDeleteCommand(script_execute_command, False),
     Eetb_AttributeRenameDeleteCommand(script_execute_command, True),
     Eetb_AttributeAddCopyCommand(True),
-    Eetb_AppInfoCommand() # make this the last entry so that its icon is the last one in the toolbar(s)
+    Eetb_AppInfoCommand(isUpdateAvailable) # make this the last entry so that its icon is the last one in the toolbar(s)
 ]
 
 # The start function will be run when the add-in is started.
