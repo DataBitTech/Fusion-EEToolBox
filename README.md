@@ -44,12 +44,16 @@ The following commands are available in the Electronics Extended Toolbox plugin 
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-EEToolbox/releases)
+1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-EEToolbox/releases) or simply clone this repository
 2. a. Extract the contents to your Fusion 360 add-ins folder. Fusion can be kept running in the background.
       Note: You can find your configured add-in location in the Preferences > General > API > Default Path for Scripts and Add-ins
    b. Extract the contents to a path of your choosing. Fusion can be kept running in the background.
 3. On the Utilities ribbon, find the Add-ins button. If you chose step 2.a you can select if you want to run it once manually, or automatically on startup. If you chose step 2.b you have to use the Add button on the top of the dialog, then 'Script or add-in from device'
 4. Enjoy, share, contribute and give feedback!
+
+## Tutorials
+
+There are tutorials for the new commands on [YouTube](https://youtube.com/playlist?list=PLa4BUswmWtMA-BXwLmQtifTjxLAAvYVyo&si=Ub-zl5piD1LCWjOr). 
 
 ## Contributing
 
