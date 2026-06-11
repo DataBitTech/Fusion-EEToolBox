@@ -37,8 +37,6 @@ FUSION_SOLID_ENV_ID: str = 'FusionSolidEnvironment'
 TEMP_DIR: str = tempfile.gettempdir()
 ULP_DIR: str = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'eetbUtils', 'ulp'))
 EETB_COMMON_ICON_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'eetbUtils', 'icons'))
-ELECTRON_COMMON_ICON_DIR = os.path.join(adsk.core.Application.get().applicationFolders.rootPath, 'Electron', 'UI', 'Resources', 'Icons')
-FUSION_COMMON_ICON_DIR = os.path.join(adsk.core.Application.get().applicationFolders.rootPath, 'Fusion', 'UI', 'FusionUI', 'Resources')
 
 # App store links
 APP_STORE_LINK_WIN64 = 'https://marketplace.autodesk.com/apps/1ab36649-512f-4797-9bdc-68179270dac9?priceId=85abea3a-13a8-444f-a41c-9bd409506c40'

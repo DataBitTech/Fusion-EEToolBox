@@ -44,7 +44,7 @@ class Eetb_ScriptAndULPButtonCommand(CommandBase):
             command_name =  button_name if button_name else f'Execute user script/ULP "{script_path}"',
             command_description = f'Execute the legacy Eagle {type_string} "{script_path}" in Fusion',
             json_temp_path = os.path.join(config.TEMP_DIR, f'fusion360_{__class__.__qualname__}_extracted_data.json'),
-            icon_folder = os.path.join(config.ELECTRON_COMMON_ICON_DIR, 'Ulp' if isULP else 'Script'))
+            icon_folder = os.path.join(config.EETB_COMMON_ICON_DIR, 'Ulp' if isULP else 'Script'))
         super().__init__(command_attributes)
         
         self._isULP = isULP

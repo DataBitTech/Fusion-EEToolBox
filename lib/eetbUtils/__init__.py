@@ -65,13 +65,13 @@ def generate_js_include() -> None:
     """
     try:
         app = adsk.core.Application.get()
-        electron_icon_path = config.ELECTRON_COMMON_ICON_DIR.replace('\\', '/')
+        icon_path = config.EETB_COMMON_ICON_DIR.replace('\\', '/')
 
         # generate file content first
         js_content = "/* THIS FILE IS GENERATED AUTOMATICALLY. DO NOT EDIT! */\n"
         js_content += generate_js_enum()
         js_content += f'export let theme = "{get_theme()}";\n\n'
-        js_content += f'export const icon_path = "{electron_icon_path}";\n'
+        js_content += f'export const icon_path = "{icon_path}";\n'
 
         js_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'javascript', 'eetb_info_generated.js'))
         os.makedirs(os.path.dirname(js_path), exist_ok=True)

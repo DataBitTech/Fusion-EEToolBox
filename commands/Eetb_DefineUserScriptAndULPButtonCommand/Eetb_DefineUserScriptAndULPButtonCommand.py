@@ -86,7 +86,7 @@ class Eetb_DefineUserScriptAndULPButtonCommand(CommandBase):
         inputs = args.command.commandInputs
 
         icon_path_add = os.path.join(config.EETB_COMMON_ICON_DIR, 'Add')
-        icon_path_remove = os.path.join(config.ELECTRON_COMMON_ICON_DIR, 'Delete')
+        icon_path_remove = os.path.join(config.EETB_COMMON_ICON_DIR, 'Delete')
 
         label = inputs.addStringValueInput('user_script_desc', '', 'You can create buttons on the UI for legacy scripts and ULPs')
         label.isReadOnly = True

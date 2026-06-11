@@ -670,8 +670,8 @@ class PartDataExportCommandBase(CommandBase):
             None: This method does not return a value.
         """
         icon_path_add = os.path.join(config.EETB_COMMON_ICON_DIR, 'Add')
-        icon_path_edit = os.path.join(config.ELECTRON_COMMON_ICON_DIR, 'EditShortcut')
-        icon_path_remove = os.path.join(config.ELECTRON_COMMON_ICON_DIR, 'Delete')
+        icon_path_edit = os.path.join(config.EETB_COMMON_ICON_DIR, 'EditShortcut')
+        icon_path_remove = os.path.join(config.EETB_COMMON_ICON_DIR, 'Delete')
         
         format_label = inputs.addStringValueInput('format_label', '', 'Select output format')
         format_label.isReadOnly = True
