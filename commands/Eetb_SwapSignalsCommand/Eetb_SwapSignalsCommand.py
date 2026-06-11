@@ -105,6 +105,10 @@ class Eetb_SwapSignalsCommand(PaletteCommandBase):
         palette_init_data = self.get_eagle_data([{'type': eetbutil.ExportDataType.SIGNAL_LIST.value, 'args': []}, 
                                                  {'type': eetbutil.ExportDataType.SIGNAL_SELECTION.value, 'args': []},
                                                  {'type': eetbutil.ExportDataType.LAYER_DATA.value, 'args': []}])
+        # Filter out layers where 'used' is False
+        filtered_layers = [layer for layer in palette_init_data.get(eetbutil.ExportDataType.LAYER_DATA.value, []) if layer.get('used', True)]
+        palette_init_data['layer_data'] = filtered_layers
+
         palette.sendInfoToHTML('setEagleData', json.dumps(palette_init_data))
 
 
