@@ -395,6 +395,7 @@ class PartDataExportCommandBase(CommandBase):
         is_custom_format = default_extension == PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM.value
         self._remove_format_button_input.isEnabled = is_user_script
         self._edit_format_button_input.isEnabled = is_user_script
+        self.open_file_on_ok_chkbox.isVisible = not is_user_script
         self.filetype_selection_input.isVisible = not is_user_script and not is_custom_format
         self._file_type_sel_label.isVisible = not is_user_script and not is_custom_format
         self.mapping_group.isVisible = not is_user_script and self._supported_formats[format_index]['attribute_mapping'] is not None
@@ -748,7 +749,7 @@ class PartDataExportCommandBase(CommandBase):
 
         self._filter_table = filter_group.children.addTableCommandInput('filter_table', 'Component filter table', 3, '3:1:7')
         self._filter_table.minimumVisibleRows = 3
-        self._filter_table.maximumVisibleRows = 6
+        self._filter_table.maximumVisibleRows = 8
         self._filter_table.columnSpacing = 1
         self._filter_table.rowSpacing = 1
         self._filter_table.tablePresentationStyle = adsk.core.TablePresentationStyles.itemBorderTablePresentationStyle # type: ignore
