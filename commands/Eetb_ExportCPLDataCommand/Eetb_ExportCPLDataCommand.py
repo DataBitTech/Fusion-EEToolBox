@@ -75,6 +75,15 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         eetbControls.add_command_to_panel(config.ELECTRON_LAYOUT_ENV_ID, eetbControls.LayoutPanel.EXPORT_PANEL, commandDefinition)
 
 
+    def on_command_created(self, args: adsk.core.CommandCreatedEventArgs):
+        """
+        Override the base class command creation event, to update the mapping help.
+        For detailed information see the base class.
+        """
+        super().on_command_created(args)
+        self.mapping_help.text = 'Fix component origin/rotation mismatch with (potentially fabhouse specific) attributes' 
+
+
     def get_user_script_input_data(self, filtered_part_data: list[dict], output_format: str) -> list[list[str]]:
         """NOT IMPLEMENTED YET"""
         # we should define a standard output format first

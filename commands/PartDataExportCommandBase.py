@@ -732,14 +732,18 @@ class PartDataExportCommandBase(CommandBase):
         self.warning_label.isVisible = False
 
         # present a table to be able to map some attributes
-        self.mapping_group = inputs.addGroupCommandInput('mapping group', 'Attribute mapping')
+        self.mapping_group = inputs.addGroupCommandInput('mapping_group', 'Attribute mapping')
+        self.mapping_help = self.mapping_group.children.addTextBoxCommandInput('mapping_help', '', '', 2, True)
+        self.mapping_help.isFullWidth = True
         self.mapping_table = self.mapping_group.children.addTableCommandInput('mapping_table', 'Attribute mapping table', 2, '2:3')
         # this table is filled out dynamically in the subclasses
 
         # add a group for the component filter options
         filter_group = inputs.addGroupCommandInput('filter_group', 'Component filter')
         filter_group.tooltip = 'Filter out components from the output'
-        
+        self._filter_help = filter_group.children.addTextBoxCommandInput('filter_help', '', 'Exclude components from the output matching any of the filters', 2, True)
+        self._filter_help.isFullWidth = True
+
         self._filter_table = filter_group.children.addTableCommandInput('filter_table', 'Component filter table', 3, '3:1:7')
         self._filter_table.minimumVisibleRows = 3
         self._filter_table.maximumVisibleRows = 6

@@ -122,6 +122,14 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
             self.warning_label.isVisible = True
 
 
+    def on_command_created(self, args: adsk.core.CommandCreatedEventArgs):
+        """
+        Override the base class command creation event, to update the mapping help.
+        For detailed information see the base class.
+        """
+        super().on_command_created(args)
+        self.mapping_help.text = 'Select component attributes for format-specific columns in the output' 
+
 
     ###########################
     # FAB SPECIFIC FORMATTING #
