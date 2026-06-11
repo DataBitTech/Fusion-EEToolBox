@@ -3,10 +3,10 @@
 	"type":	"addin",
 	"author":	"Pal Szabo",
 	"description":	{
-		"":	""
+		"en":	"Extended toolbox with many new commands for the electronics workspace in Fusion"
 	},
-	"version":	"0.17.4",
-	"runOnStartup":	false,
+	"version":	"0.17.5",
+	"runOnStartup":	true,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true,
 	"iconFilename":	"AddInIcon.svg"

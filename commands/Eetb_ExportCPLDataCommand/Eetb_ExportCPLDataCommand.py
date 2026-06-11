@@ -46,10 +46,6 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             json_temp_path = os.path.join(config.TEMP_DIR, f'fusion360_{__class__.__qualname__}_extracted_data.json'),
             icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources'))
         super().__init__(command_attributes, edit_user_script_command)
-        
-        self._rotation_attribute_selection_input: adsk.core.DropDownCommandInput
-        self._horizontal_attribute_selection_input: adsk.core.DropDownCommandInput
-        self._vertical_attribute_selection_input: adsk.core.DropDownCommandInput
 
         self.default_attribute_mapping = [
             # column to map to attribute    optional?
@@ -114,17 +110,35 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         x = component['x']
         y = component['y']
         rot = component['angle']
+        top_side = not component.get('mirror', False)
         rotation_fix = 0.0
 
         attributes = component.get('attributes',[])
         fix_values = self.get_mapped_attribute_values(self.default_attribute_mapping, attributes)
 
         if horizontal_fix_used and fix_values[1]:
-            x += float(fix_values[1]) * math.cos(rot / 180 * math.pi)
-            y -= float(fix_values[1]) * math.sin(rot / 180 * math.pi)
+            # Horizontal correction should be applied in the direction of the component's rotation
+            # But since we're correcting the centroid position, we need to account for rotation
+            # The offset should be applied in the component's local coordinate system
+            offset_x = float(fix_values[1]) * math.cos(rot / 180 * math.pi)
+            offset_y = float(fix_values[1]) * math.sin(rot / 180 * math.pi)
+            y += offset_y
+            if top_side:
+                x += offset_x
+            else:
+                x -= offset_x # the board is mirrored, so compensate in the negative direction
+
         if vertical_fix_used and fix_values[2]:
-            x -= float(fix_values[2]) * math.sin(rot / 180 * math.pi)
-            y += float(fix_values[2]) * math.cos(rot / 180 * math.pi)
+            # Vertical correction should be applied perpendicular to the component's rotation
+            # In component's local coordinate system, this is 90 degrees from rotation
+            offset_x = float(fix_values[2]) * math.sin(rot / 180 * math.pi)
+            offset_y = float(fix_values[2]) * math.cos(rot / 180 * math.pi)
+            y += offset_y
+            if top_side:
+                x -= offset_x  # Note: minus sign because we're going in the opposite direction
+            else:
+                x += offset_x # the board is mirrored, so compensate in the positive direction
+
         if rotation_fix_used and fix_values[0]:
             rotation_fix = float(fix_values[0])
             if rotation_fix < 0:
@@ -300,7 +314,6 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
                 if attribute['name'] in ['DESCRIPTION', 'DESC']:
                     description = attribute['value']
                     break
-            
             (x, y , rot) = self._apply_corrections(component)
 
             # add to the output
