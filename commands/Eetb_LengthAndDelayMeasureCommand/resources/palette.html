@@ -141,7 +141,7 @@
 
                 row.innerHTML = `
                     <td>
-                        <span class="action-btn remove-btn" onclick="removeGroup(${group.originalIndex})">X</span>
+                        <span class="action-btn remove-btn" onclick="removeGroup(${group.originalIndex})">x</span>
                         <span id="add-btn-${group.originalIndex}" class="action-btn add-btn" onclick="addToGroup(${group.originalIndex})">+</span>
                         <span class="action-btn expand-btn" onclick="toggleSignalDetails(this, ${group.originalIndex})">&#9654;</span>
                         <span class="row-text" onclick='onGroupClick(${JSON.stringify(group.signals)})'>${group.name}</span>

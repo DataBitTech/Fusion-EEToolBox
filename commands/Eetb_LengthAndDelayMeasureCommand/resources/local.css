@@ -19,6 +19,7 @@ th {
     cursor: pointer;
 }
 .action-btn {
+    font-size: 16px;
     cursor: pointer;
     display: inline-block;
     width: 16px;
@@ -26,7 +27,7 @@ th {
     font-weight: bold;
 }
 .remove-btn { color: red; }
-.add-btn { color: green; }
+.add-btn { color: #23bc5d; }
 .expand-btn { }
 .warning-message {
     color: #FFD700; /* Gold */
