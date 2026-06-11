@@ -71,6 +71,25 @@ class CommandStartingHandler(adsk.core.ApplicationCommandEventHandler):
             ui.messageBox(f'Error closing palette: {str(e)}')
 
 
+class WorkspaceDeactivatedHandler(adsk.core.WorkspaceEventHandler):
+    """Handles workspace deactivation events."""
+    def notify(self, eventArgs) -> None:
+        """Handles workspace deactivation events.
+
+        This method is called when a workspace is deactivated. For some reason,
+        all command buttons need to be reenabled for the Electronics workspaces
+        if the user switches FROM the '3D PCB' or the 'Design' workspace
+
+        Args:
+            eventArgs: The event arguments containing workspace information.
+
+        Returns:
+            None
+        """
+        if (eventArgs.workspace.name == '3D PCB' or eventArgs.workspace.name == 'Design'):
+            controls.enable_all_commands()
+
+
 def run(context) -> None:
     """Entry point function to start the Electronics Extended Toolbox add-in.
 
@@ -88,11 +107,15 @@ def run(context) -> None:
         commands.start()
 
         onCommandStarting = CommandStartingHandler()
+        onWorkspaceDeactivated = WorkspaceDeactivatedHandler()
 
         app = adsk.core.Application.get()
         app.userInterface.commandStarting.add(onCommandStarting)
-        # Store the event handle
+        app.userInterface.workspaceDeactivated.add(onWorkspaceDeactivated)
+        
+        # Store the event handles
         events.append(onCommandStarting)
+        events.append(onWorkspaceDeactivated)
 
         eetbUtils.generate_js_include()
 

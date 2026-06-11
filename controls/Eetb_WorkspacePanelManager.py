@@ -161,6 +161,11 @@ class Eetb_WorkspacePanelManager:
             return None
 
 
+    def toggle_command_enabled_state(self, isEnabled: bool):
+        for cmdCtrl in self._local_controls:
+            cmdCtrl.commandDefinition.controlDefinition.isEnabled = isEnabled
+
+
     def _get_panel_ID(self, panel: Enum) -> Optional[adsk.core.ToolbarPanel]:
         """Get a specific panel by ID."""
         if panel not in self._panel_config:

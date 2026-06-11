@@ -120,3 +120,17 @@ def clear_panel(workspace_id: str, panel_id: Enum):
     
     # Get the control for this workspace
     control = controls[ctrl_idx].clear_panel(panel_id)
+
+
+def enable_all_commands():
+    """
+    Enable all commands managed by the Eetb_WorkspacePanelManager controls.
+
+    This function iterates through all registered controls and enables
+    all commands that have been added to panels. It ensures that all
+    commands are active and available for use within their respective
+    workspaces and panels.
+    """
+    for control in controls:
+        control.toggle_command_enabled_state(True)
+
