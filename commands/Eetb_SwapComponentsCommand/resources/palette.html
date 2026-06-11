@@ -11,14 +11,44 @@
     </style>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const inputFields = [
-                document.getElementById("input1"),
-                document.getElementById("input2")
-            ];
+            const input1 = document.getElementById("input1");
+            const input2 = document.getElementById("input2");
+            const inputFields = [input1, input2];
+            
             eetb_textFields_attachAutoComplete(inputFields, partList);
             selectRotation('transfer', document.getElementById('rotate-transfer'));
             selectMirroring('transfer', document.getElementById('mirroring-transfer'));
+                    
+            // Attach event listeners to input fields for validation
+            input1.addEventListener("input", validateInput);
+            input2.addEventListener("input", validateInput);
+            validateInput();
         });
+
+        function validateInput() {
+            const input1 = document.getElementById("input1");
+            const input2 = document.getElementById("input2");
+            const okButton = document.getElementById("ok-button");
+            const inputValue1 = input1.value.trim().toUpperCase();
+            const inputValue2 = input2.value.trim().toUpperCase();
+            let valid = true;
+
+            if (partList.includes(inputValue1)) {
+                input1.classList.remove("invalid");
+            } else {
+                input1.classList.add("invalid");
+                valid = false;
+            }
+
+            if (partList.includes(inputValue2)) {
+                input2.classList.remove("invalid");
+            } else {
+                input2.classList.add("invalid");
+                valid = false;
+            }
+
+            okButton.disabled = !valid;
+        }
 
         function selectRotation(option, element) {
             document.getElementById('part-rotation-selector').value = option;
@@ -69,6 +99,8 @@
                         if (partSelection.length > 1) {
                             document.getElementById("input2").value = partSelection[1];
                         }
+                        // do a validation check on the inputs
+                        validateInput();
                     }
                 } catch (e) {
                     displayError(e.toString())
@@ -76,6 +108,7 @@
                 return "OK";
             },
         }
+
         function displayError(error_string)
         {
             const errorDiv = document.getElementById('errorDisplay');
@@ -124,7 +157,7 @@
     </table>
     <div id="errorDisplay" class="error-message"></div> <!-- New error display div -->
     <div class="button-group">
-        <button type="button" onclick="onOkButton()" class="secondary">OK</button>
+        <button type="button" id="ok-button" onclick="onOkButton()" class="secondary">OK</button>
         <button type="button" onclick="eetb_onCancelButton()" class="secondary">Cancel</button>
     </div>
 </form>
