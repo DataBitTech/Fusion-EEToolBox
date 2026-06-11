@@ -166,7 +166,7 @@ void json_color(string key, int val, int trailer) {
 
 void json_real(string key, real val, int trailer) {
     if (strlen(key))
-        printf("%s\"%s\": %.9f%s", __json_indent, key, val, __json_trailers[trailer]);
+        printf("%s\"%s\": %.16f%s", __json_indent, key, val, __json_trailers[trailer]);
     else
         printf("%s%f%s", __json_indent, val, __json_trailers[trailer]);
 }
