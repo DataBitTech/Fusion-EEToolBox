@@ -1,0 +1,179 @@
+//======================================================
+// json_format.ulp
+//
+// Eagle v6.5 or later is required
+//
+// Utility functions to support JSON formatted output
+// 
+// This software is released under the MIT license:
+//
+// MIT License
+// 
+// Copyright (c) 2025 Pal Szabo
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//======================================================
+
+enum {  JSON_NONE,
+        JSON_COMMA,
+        JSON_NEWLINE,
+        JSON_COMMA_AND_NEWLINE,
+        JSON_COMMA_AND_SPACE
+}
+;
+
+string __json_trailers[];
+string __json_indent = "";
+string __json_indent_stack[];
+int __depth_json_indent_stack = 0;
+
+void json_init()
+{
+    __json_trailers[JSON_NONE]                = "";
+    __json_trailers[JSON_COMMA]               = ",";
+    __json_trailers[JSON_NEWLINE]             = "\n";
+    __json_trailers[JSON_COMMA_AND_NEWLINE]   = ",\n";
+    __json_trailers[JSON_COMMA_AND_SPACE]     = ", ";
+}
+
+void json_trailing_chars(int trailer)
+{
+    printf("%s", __json_trailers[trailer]);
+}
+
+
+/************************/
+/* INDENTATION HANDLING */
+/************************/
+
+void json_indent_push()
+{
+    __json_indent_stack[__depth_json_indent_stack++] = __json_indent;
+}
+
+void json_indent_pop()
+{
+    if (__depth_json_indent_stack)
+        __json_indent = __json_indent_stack[--__depth_json_indent_stack];
+}
+
+void json_indent_reset()
+{
+    __json_indent = "";
+}
+
+
+void __json_change_json_indent(int num_spaces)
+{
+    if (num_spaces > 0)
+    {
+        while (num_spaces--)
+            __json_indent += " ";
+    } else {
+        int len = strlen(__json_indent);
+        if (len >= num_spaces)
+            __json_indent = strsub(__json_indent, 0, len + num_spaces);
+        else
+            __json_indent = "";
+    }
+}
+
+
+/**********************/
+/* STRUCTURE HANDLING */
+/**********************/
+
+void json_begin_object(string name, int trailer) {
+  if (strlen(name)) 
+      printf("%s\"%s\": {%s", __json_indent, name, __json_trailers[trailer]);
+  else 
+      printf("%s{%s", __json_indent, __json_trailers[trailer]);
+  __json_change_json_indent(+2);
+}
+
+void json_end_object(int trailer) {
+  __json_change_json_indent(-2);
+  printf("%s}%s", __json_indent, __json_trailers[trailer]);
+}
+
+void json_begin_array(string name, int trailer) {
+    if (strlen(name))
+        printf("%s\"%s\": [%s", __json_indent, name, __json_trailers[trailer]);
+    else
+        printf("%s[%s", __json_indent, __json_trailers[trailer]);
+    __json_change_json_indent(+2);
+}
+
+void json_end_array(int trailer) {
+    __json_change_json_indent(-2);
+    printf("%s]%s", __json_indent, __json_trailers[trailer]);
+}
+
+
+/*****************/
+/* ITEM HANDLING */
+/*****************/
+
+void json_string(string key, string val, int trailer) {
+    int invalid_char_idx = strchr(val, '"');
+    while (invalid_char_idx >= 0)
+    {
+        val = strsub(val, 0, invalid_char_idx) + "\\" + strsub(val, invalid_char_idx, strlen(val) - invalid_char_idx);
+        invalid_char_idx = strchr(val, '"', invalid_char_idx + 2);
+    }
+    if (strlen(key))
+        printf("%s\"%s\": \"%s\"%s", __json_indent, key, val, __json_trailers[trailer]);
+    else
+        printf("%s\"%s\"%s", __json_indent, val, __json_trailers[trailer]);
+}
+
+void json_int(string key, int val, int trailer) {
+    if (strlen(key))
+        printf("%s\"%s\": %d%s", __json_indent, key, val, __json_trailers[trailer]);
+    else
+        printf("%s%d%s", __json_indent, val, __json_trailers[trailer]);
+}
+
+void json_hex(string key, int val, int trailer) {
+    if (strlen(key))
+        printf("%s\"%s\": \"0X%8X\"%s", __json_indent, key, val, __json_trailers[trailer]);
+    else
+        printf("%s\"0X%8X\"%s", __json_indent, val, __json_trailers[trailer]);
+}
+
+void json_color(string key, int val, int trailer) {
+    if (strlen(key))
+        printf("%s\"%s\": \"#%8X\"%s", __json_indent, key, val, __json_trailers[trailer]);
+    else
+        printf("%s\"#%8X\"%s", __json_indent, val, __json_trailers[trailer]);
+}
+
+void json_real(string key, real val, int trailer) {
+    if (strlen(key))
+        printf("%s\"%s\": %.9f%s", __json_indent, key, val, __json_trailers[trailer]);
+    else
+        printf("%s%f%s", __json_indent, val, __json_trailers[trailer]);
+}
+
+void json_bool(string key, int val, int trailer) {
+    if (strlen(key))
+        printf("%s\"%s\": %s%s", __json_indent, key, (val) ? "true" : "false", __json_trailers[trailer]);
+    else
+        printf("%s%s%s", __json_indent, (val) ? "true" : "false", __json_trailers[trailer]);
+}

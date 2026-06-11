@@ -1,0 +1,24 @@
+<svg width="32px" height="32px" viewBox="0 0 32 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <rect id="path-1" x="0" y="0" width="32" height="24" rx="2"></rect>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Artboard">
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <use id="Rectangle" fill="#37474F" xlink:href="#path-1"></use>
+            <g id="Grid" mask="url(#mask-2)" stroke="#546E7A" stroke-width="1">
+                <line x1="4" y1="0" x2="4" y2="26" id="Path"></line>
+                <line x1="12" y1="0" x2="12" y2="26" id="Path"></line>
+                <line x1="20" y1="0" x2="20" y2="26" id="Path"></line>
+                <line x1="28" y1="0" x2="28" y2="26" id="Path"></line>
+                <line x1="0" y1="4" x2="32" y2="4" id="Path"></line>
+                <line x1="0" y1="12" x2="32" y2="12" id="Path"></line>
+                <line x1="0" y1="20" x2="32" y2="20" id="Path"></line>
+            </g>
+            <polyline id="Cyan-Wave" stroke="#00B0FF" stroke-width="1" mask="url(#mask-2)" points="16 12 18 12 20 6 24 18 28 6 30 12 32 12"></polyline>
+            <polyline id="Green-Wave" stroke="#00E676" stroke-width="1" mask="url(#mask-2)" points="0 12 4 12 6 1 9 23 12 12 16 12"></polyline>
+        </g>
+    </g>
+</svg>

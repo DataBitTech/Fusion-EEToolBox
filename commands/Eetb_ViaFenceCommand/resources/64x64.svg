@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Curved line -->
+  <path d="M0 32 H 28 L 64 -8" stroke="#73C5FF" stroke-width="8" fill="none"/>
+
+  <!-- Green rings along the line -->
+  <circle cx="20" cy="12" r="10" fill="green"/>
+  <circle cx="12" cy="52" r="10" fill="green"/>
+  <circle cx="52" cy="36" r="10" fill="green"/>
+  
+  <!-- Black circles in the middle -->
+  <circle cx="20" cy="12" r="4" fill="black"/>
+  <circle cx="12" cy="52" r="4" fill="black"/>
+  <circle cx="52" cy="36" r="4" fill="black"/>
+</svg>

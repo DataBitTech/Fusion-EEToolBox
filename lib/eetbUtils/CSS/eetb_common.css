@@ -1,0 +1,214 @@
+/* 
+This software is released under the MIT license:
+MIT License
+
+Copyright (c) 2025 Pal Szabo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+=====================================================
+*/
+
+/* Global class to hide HTML elements */
+.hidden {
+    display: none !important;
+}
+
+/* Button Group in the bottom right */
+.button-group {
+    text-align: right;
+    margin-top: 10px;
+}
+.button-group button {
+    margin-left: 8px;
+}
+
+
+/* Form Layout Table */
+.form-layout {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0; /* Horizontal and vertical spacing */
+}
+
+.form-layout td {
+    vertical-align: middle;
+    border: none; /* Remove default border */
+    padding: 3px; /* Remove padding for compact rows */
+}
+
+.form-layout td:first-child {
+    text-align: left;
+    width: 100px; /* Let the browser decide the width */
+}
+
+.form-layout td:last-child {
+    width: fill !important; /* Auto fill remaining space */  
+    text-align: left;
+}
+
+
+/* Debug Message Styling */
+#debug {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    white-space: pre-wrap;
+}
+
+/* Error Message Styling */
+.error-message {
+    color: #FF6347; /* Tomato red */
+    background-color: #333a42; /* Dark theme background */
+    border: 1px solid #FF6347;
+    padding: 8px;
+    margin-top: 10px;
+    display: none; /* Hidden by default */
+    font-size: 0.9em;
+    border-radius: 4px;
+}
+
+/* Validation error style */
+input.invalid {
+    border: 2px solid #FF6347 !important;
+}
+
+
+/* --- THEMES --- */
+
+/* Dark Theme */
+body.dark-theme {
+    background-color: #3b4453;
+    color: #e4e7eb;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+}
+
+body.dark-theme a {
+    color: #6dd2ff;
+}
+
+body.dark-theme input[type="text"],
+body.dark-theme input[type="number"] {
+    background-color: #2C3440;
+    color: #FFFFFF;
+    border: 2px solid transparent; /* Changed from none to transparent border */
+    padding: 7px;
+    border-radius: 4px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    width: 100%;
+}
+
+body.dark-theme input[type="text"]:focus,
+body.dark-theme input[type="number"]:focus {
+    outline: none; /* Remove default outline */
+    border-bottom: 2px solid #38abdf; /* Blue line at the bottom */
+}
+
+body.dark-theme input[type="text"]:hover:not(:focus),
+body.dark-theme input[type="number"]:hover:not(:focus) {
+    border-bottom: 2px solid #bcd3ee; /* White line at the bottom on hover, but not when focused */
+}
+
+body.dark-theme button {
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    color: #FFFFFF;
+    cursor: pointer;
+    min-width: 70px; /* Ensure equal width for buttons */
+}
+
+body.dark-theme button:focus {
+    background-color: #007ACC; /* Primary blue color */
+    outline: none; /* Remove default focus outline */
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.5); /* A subtle blue glow */
+}
+
+body.dark-theme .primary {
+    background-color: #007ACC;
+    font-weight: bold; /* Keep bold for primary */
+}
+
+body.dark-theme .secondary {
+    background-color: #55595F;
+    font-weight: normal; /* Change to normal for secondary */
+}
+
+body.dark-theme #debug {
+    background-color: #2B3644;
+    border-color: #FFFFFF;
+}
+
+body.dark-theme option {
+    background-color: #333a42; /* Main dark theme background */
+    color: #d1d1d1;
+    padding: 5px 8px; /* Consistent with autocomplete-entry */
+}
+
+body.dark-theme option:checked, /* For selected option in the dropdown list */
+body.dark-theme option:hover {
+    background-color: #007ACC; /* Fusion's primary blue on hover */
+    color: #FFFFFF;
+}
+
+body.dark-theme select {
+    background-color: #2c3440; /* Similar to input text fields */
+    color: #FFFFFF;
+    border: none;
+    padding: 7px;
+    padding-right: 25px; /* Make space for the arrow */
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-appearance: none; /* Remove default browser styling for dropdown */
+    -moz-appearance: none;
+    appearance: none;
+    /* Custom arrow using SVG data URI */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d1d1d1'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px 16px; /* Adjust size of the arrow */
+}
+
+body.dark-theme select:focus {
+    outline: none;
+    border-color: #007ACC; /* Highlight on focus */
+    /* Custom up arrow for focused state */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d1d1d1'%3E%3Cpath d='M7 14l5-5 5 5z'/%3E%3C/svg%3E");
+}
+
+
+/* Light Theme */
+body.light-theme {
+    background-color: #F5F5F0;
+    color: #000000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body.light-theme #debug {
+    background-color: #F0F0F0;
+    border-color: #CCCCCC;
+}
+body.light-theme button {
+    background-color: #E8E8E8;
+    color: #000000;
+    border: 1px solid #000000;
+}

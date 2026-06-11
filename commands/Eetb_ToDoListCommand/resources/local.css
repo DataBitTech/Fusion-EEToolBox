@@ -1,0 +1,162 @@
+:root {
+    --accent-color: #0078d4;
+    --item-bg: transparent;
+    --border-color: #454545;
+    --progress-color: #007ACC66; /* 40% opacity for the progress color */
+    --icon-invert: 1; /* Default to invert for dark theme */
+}
+
+body.light-theme {
+    --accent-color: #0078d4;
+    --item-bg: transparent;
+    --border-color: #d1d1d1;
+    --progress-color: #007ACC33; /* 20% opacity for light theme */
+    --icon-invert: 0; /* No invert for light theme */
+}
+
+body {
+    margin: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+.icon-btn img {
+    width: 16px; /* Ensure icon size */
+    height: 16px;
+    filter: invert(var(--icon-invert, 0)); /* For dark mode compatibility */
+}
+.edit-btn {
+    margin-left: auto; /* Push button to the right */
+}
+
+/* Style for editable span */
+.todo-item-content span[contenteditable="true"] {
+    background-color: rgba(255, 255, 255, 0.1);
+    outline: none; /* Remove default outline */
+    border-radius: 2px;
+    min-width: 50px; /* Ensure it's visible when empty */
+    border: 1px solid var(--accent-color);
+    padding: 2px 4px;
+}
+
+body.light-theme .todo-item-content span[contenteditable="true"] {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+#todo-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.todo-item {
+    background-color: var(--item-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.todo-item .progress-bar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 0%;
+    background-color: var(--progress-color);
+    z-index: 0;
+    transition: width 0.1s linear;
+}
+
+.todo-item-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.todo-item input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Checkbox styling for dark theme */
+body.dark-theme .todo-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    border: 2px solid #D1D1D1;
+    border-radius: 2px;
+    position: relative;
+    outline: none;
+}
+
+body.dark-theme .todo-item input[type="checkbox"]:checked {
+    background-color: #007ACC;
+    border-color: #007ACC;
+}
+
+body.dark-theme .todo-item input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+body.dark-theme .todo-item input[type="checkbox"]:hover:not(:checked) {
+    border-color: #007ACC;
+}
+
+.todo-item span {
+    flex-grow: 1;
+    word-break: break-all;
+}
+
+a.js-link {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+a.js-link:hover {
+    text-decoration: underline;
+}

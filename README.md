@@ -1,0 +1,66 @@
+# Electronics Extended Toolbox (EETB) for Fusion 360
+
+An extension for Autodesk Fusion 360 that provides an extended set of tools for electronics design and PCB layout.
+
+## Overview
+
+The Electronics Extended Toolbox is a Fusion 360 add-in that provides enhanced tools and utilities for electrical and electronics design within Fusion 360's Electronics workspace. This plugin aims to extend the built-in electronics capabilities with additional functionality for PCB design, component management, and design automation. It aims to extend the electronics workspaces, adding long missing functionality and assembling scripts that users have been writing for themselves since the Eagle times. We hope to provide a platform to continue the tradition of sharing useful routines in a community driven way and modernized form.
+
+## Features
+
+The following commands are available in the Electronics Extended Toolbox plugin for Fusion 360:
+
+### Schematics editor
+- Export BOM in manufacturer specific formats, supporting
+  - filtering out components using user defined Regex patterns
+  - mapping attributes to BOM columns
+  - exporting to CSV, Excel, and text files
+  - calling external user scripts from Fusion for custom BOM processing processing
+- Add UI buttons for any legacy ULP or SCR script
+- ToDo list with links to schematic elements
+
+### Layout editor
+- Measure routing length and propagation delay, including vias
+- Swap signal routing, with layer and via filtering
+- Swap component placement with different orientation options
+- Fix line connections for imported DXF files
+- Export BOM in manufacturer specific formats, supporting THT/SMD flag in addition to the features of the schematics editor BOM exporter
+- Export component placement data in manufacturer specific formats, supporting
+  - rotation and translation fixes specific to the manufacturer
+  - filtering out components using user defined Regex patterns
+  - mapping attributes to BOM columns
+  - exporting to CSV, Excel, and text files
+  - calling external user scripts from Fusion for custom BOM processing processing
+- Add UI buttons for any legacy ULP or SCR script
+- ToDo list with links to schematic elements
+- Customizable checklist for design review before production
+
+### 3D package editor
+- Snap 3D model to PCB surface
+- Center 3D model feature to footprint feature
+- Symmetric alignment of 3d features to footprint features
+
+### Library editor
+- Add UI buttons for any legacy ULP or SCR script
+
+## Installation
+
+1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-electronics-extended-toolbox/releases)
+2. Extract the contents to your Fusion 360 add-ins folder. Fusion can be kept running in the background.
+   ```
+   You can find your configured add-in location in the Preferences > General > API > Default Path for Scripts and Add-ins
+   ```
+3. On the Utilities ribbon, find the Add-ins button. You can select if you want to run it once manually, or automatically on startup
+4. Enjoy, share, contribute and give feedback!
+
+## Contributing
+
+Contributions are most welcome! Please consult the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+Thank you for all the community contributors for sharing their knowledge and code snippets!

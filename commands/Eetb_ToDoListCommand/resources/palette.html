@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToDo</title>
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="./local.css">
+</head>
+<body>
+    <div class="header">
+        <input type="text" id="todo-input" placeholder="Add a new task..." onkeyup="if(event.key==='Enter') addItem()">
+        <button id="add-btn" class="primary" onclick="addItem()">Add</button>
+    </div>
+    <div id="todo-list">
+        <!-- Items will be injected here -->
+    </div>
+
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <script>
+        const todoList = document.getElementById('todo-list');
+        const todoInput = document.getElementById('todo-input');
+        let timers = {};
+        let originalTexts = {};
+
+        function displayError(msg) {
+            console.error(msg);
+        }
+
+        function addItem() {
+            const text = todoInput.value.trim();
+            if (text) {
+                adsk.fusionSendData('addItem', JSON.stringify({ text: text }));
+                todoInput.value = '';
+            }
+        }
+
+        function removeItem(id) {
+            adsk.fusionSendData('removeItem', JSON.stringify({ id: id }));
+        }
+
+        function toggleEdit(id) {
+            const span = document.getElementById(`text-${id}`);
+            if (span.contentEditable === 'true') {
+                span.contentEditable = 'false';
+                span.blur(); // Trigger saveEditedText
+            } else {
+                span.contentEditable = 'true';
+                span.focus();
+                const range = document.createRange();
+                range.selectNodeContents(span);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+
+        function saveEditedText(id) {
+            const span = document.getElementById(`text-${id}`);
+            const newText = span.textContent.trim();
+            const originalText = originalTexts[id];
+
+            span.contentEditable = 'false'; // Ensure it's no longer editable after blur/save
+            
+            if (newText && newText !== originalText) {
+                adsk.fusionSendData('editItem', JSON.stringify({ id: id, text: newText }));
+                originalTexts[id] = newText; // Update original text
+            } else {
+                span.textContent = originalText; // Revert if no actual change
+            }
+        }
+
+        function handleEditKey(id, event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent new line
+                document.getElementById(`text-${id}`).blur(); // Trigger onblur -> saveEditedText
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                const span = document.getElementById(`text-${id}`);
+                span.textContent = originalTexts[id]; // Revert to original text
+                document.getElementById(`text-${id}`).blur(); // Trigger onblur, which will see no change
+            }
+        }
+
+        function handleTextClick(text) {
+            adsk.fusionSendData('clickableTextClick', JSON.stringify({ text: text }));
+        }
+
+        function parseAndRenderClickableText(text) {
+            const regex = /<([^>]+)>/g;
+            let result = '';
+            let lastIndex = 0;
+            let match;
+
+            while ((match = regex.exec(text)) !== null) {
+                // Append the text before the clickable part
+                result += escapeHtml(text.substring(lastIndex, match.index));
+
+                const clickableText = match[1];
+                
+                // Append the clickable link. We escape the text for the onclick parameter and escape single quotes.
+                result += `<a href="#" class="js-link" onclick="event.preventDefault(); handleTextClick('${escapeHtml(clickableText).replace(/'/g, "\\'")}')">${escapeHtml(clickableText)}</a>`;
+                
+                lastIndex = regex.lastIndex;
+            }
+
+            // Append the rest of the text
+            if (lastIndex < text.length) {
+                result += escapeHtml(text.substring(lastIndex));
+            }
+
+            return result;
+        }
+
+        // --- FUSION 360 HANDLER ---
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === 'setItems') {
+                        const items = JSON.parse(data);
+                        renderItems(items);
+                    } else if (action === 'setTheme') {
+                        if (data.includes('Light')) {
+                            document.body.classList.remove('dark-theme');
+                            document.body.classList.add('light-theme');
+                        } else {
+                            document.body.classList.remove('light-theme');
+                            document.body.classList.add('dark-theme');
+                        }
+                    }
+                } catch (e) {
+                    displayError(`Exception: ${e}\nData: ${data}`);
+                }
+                return "OK";
+            },
+        };
+
+        function renderItems(items) {
+            const newItemIds = items.map(item => item.id);
+            const currentItemElements = Array.from(todoList.children);
+            
+            // Remove items from DOM that are no longer in the list from Python
+            currentItemElements.forEach(el => {
+                const id = parseInt(el.id.replace('item-', ''));
+                if (!newItemIds.includes(id)) {
+                    el.remove();
+                    // Clean up associated timer and original text
+                    if (timers[id]) {
+                        clearInterval(timers[id].interval);
+                        delete timers[id];
+                    }
+                    if (originalTexts.hasOwnProperty(id)) {
+                        delete originalTexts[id];
+                    }
+                }
+            });
+
+            // Add new items or update existing ones
+            items.forEach(item => {
+                const existingEl = document.getElementById(`item-${item.id}`);
+                if (existingEl) {
+                    // It exists, so just update the text if it's different
+                    const span = document.getElementById(`text-${item.id}`);
+                    const newText = parseAndRenderClickableText(item.text);
+                    if (span && span.innerHTML !== newText) {
+                        span.innerHTML = newText;
+                        originalTexts[item.id] = item.text; // Update raw text
+                    }
+                } else {
+                    // It's a new item, create and append it
+                    originalTexts[item.id] = item.text; // Store raw text
+                    const div = document.createElement('div');
+                    div.className = 'todo-item';
+                    div.id = `item-${item.id}`;
+                    div.innerHTML = `
+                        <div class="progress-bar" id="progress-${item.id}"></div>
+                        <div class="todo-item-content">
+                            <input type="checkbox" id="check-${item.id}" onchange="handleCheckboxChange('${item.id}')">
+                            <span id="text-${item.id}" contenteditable="false" onblur="saveEditedText('${item.id}')" onkeydown="handleEditKey('${item.id}', event)">${parseAndRenderClickableText(item.text)}</span>
+                            <button class="icon-btn edit-btn" onclick="toggleEdit('${item.id}')">
+                                <img src="../../../lib/eetbUtils/icons/EditShortcut/16x16.png" alt="Edit">
+                            </button>
+                        </div>
+                    `;
+                    todoList.appendChild(div);
+                }
+            });
+        }
+
+        function handleCheckboxChange(id) {
+            const checkbox = document.getElementById(`check-${id}`);
+            const progressBar = document.getElementById(`progress-${id}`);
+            
+            if (checkbox.checked) {
+                startTimer(id);
+            } else {
+                stopTimer(id);
+            }
+        }
+
+        function startTimer(id) {
+            if (timers[id]) return;
+
+            const progressBar = document.getElementById(`progress-${id}`);
+            let startTime = Date.now();
+            const duration = 10000; // 10 seconds
+
+            timers[id] = {
+                interval: setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min((elapsed / duration) * 100, 100);
+                    progressBar.style.width = progress + '%';
+
+                    if (elapsed >= duration) {
+                        clearInterval(timers[id].interval);
+                        delete timers[id];
+                        removeItem(id);
+                    }
+                }, 50)
+            };
+        }
+
+        function stopTimer(id) {
+            if (timers[id]) {
+                clearInterval(timers[id].interval);
+                delete timers[id];
+            }
+            const progressBar = document.getElementById(`progress-${id}`);
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

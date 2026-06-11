@@ -1,0 +1,10 @@
+__pycache__/
+.[Vv][Ss][Cc]ode*/
+.env
+.continue*/
+.claude*/
+CLAUDE.md
+lib/eetbUtils/examples/
+lib/eetbUtils/icons/Unused
+CONFIG.JSON
+eetb_info_generated.js

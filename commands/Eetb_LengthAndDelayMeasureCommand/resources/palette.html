@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Signal Length Measurement</title>
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_autocomplete.css">
+    <link rel="stylesheet" href="local.css"/>
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <script>
+        // --- GLOBAL STATE ---
+        let signalGroups = [];
+        let processedGroupData = [];
+        let displayUnit = 'mm';
+        let sortColumn = 'name';
+        let sortDirections = {};
+        const MM_TO_INCH = 1 / 25.4;
+
+        function updateStackupDisplay(fullPath) {
+            const stackupFilenameSpan = document.getElementById('stackupFilename');
+            stackupFilenameSpan.setAttribute('data-full-path', fullPath);
+            smartTruncatePath(fullPath, stackupFilenameSpan);
+        }
+
+        function smartTruncatePath(fullPath, element) {
+            const separator = fullPath.includes('/') ? '/' : '\\';
+            const parts = fullPath.split(separator);
+            const filename = parts.pop(); // Get the filename
+
+            element.textContent = filename; // Start with just the filename
+
+            // If filename itself is too long for the element
+            if (element.scrollWidth > element.clientWidth) {
+                element.textContent = `...${filename.slice(-(element.clientWidth / (element.scrollWidth / filename.length)) + 3)}`; // Approximate visible part
+                if (element.scrollWidth > element.clientWidth) { // If it's still too long after initial slice
+                    element.textContent = `...${filename.slice(-Math.floor(element.clientWidth / (element.scrollWidth / filename.length)) + 4)}`; // try another slice (this is a bit heuristic)
+                }
+                return;
+            }
+
+            // Try to add parent directories
+            let currentDisplay = filename;
+            for (let i = parts.length - 1; i >= 0; i--) {
+                const potentialDisplay = `${parts[i]}${separator}${currentDisplay}`;
+                element.textContent = potentialDisplay;
+                if (element.scrollWidth <= element.clientWidth) {
+                    currentDisplay = potentialDisplay;
+                } else {
+                    element.textContent = `...${separator}${potentialDisplay}`;
+                    if (element.scrollWidth > element.clientWidth) {
+                        element.textContent = `...${currentDisplay}`; // Keep the last known fitting version
+                    }
+                    return;
+                }
+            }
+        }
+
+        function calculatePhaseDifference(frequencyMHz, total_delay_ns) {
+            if (frequencyMHz === 0 || total_delay_ns === null) {
+                return null;
+            }
+            const frequencyGHz = frequencyMHz / 1000; // Convert MHz to GHz
+            return 360 * frequencyGHz * total_delay_ns;
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('frequencyMHz').addEventListener('input', buildTable);
+            document.getElementById('unitToggle').addEventListener('change', () => {
+                displayUnit = document.getElementById('unitToggle').checked ? 'in' : 'mm';
+                buildTable(); // Re-render with new units, no need to ask Python again
+            });
+            const signalNameInput = document.getElementById('signalNameInput');
+            signalNameInput.addEventListener('input', updateAllButtonStates);
+            eetb_textFields_attachAutoComplete([signalNameInput], signalList);
+            updateAllButtonStates();
+
+            window.addEventListener('resize', () => {
+                const stackupFilenameSpan = document.getElementById('stackupFilename');
+                const fullPath = stackupFilenameSpan.getAttribute('data-full-path');
+                if (fullPath) {
+                    updateStackupDisplay(fullPath);
+                }
+            });
+
+            const loadStackupBtn = document.getElementById('loadStackupFromDiskBtn');
+            const loadStackupIcon = loadStackupBtn.querySelector('.load-stackup-icon'); // Get the image inside the button
+            const normalSrc = icon_path + '/Pull/16x16-dark.png';
+            const highlightSrc = icon_path + '/Pull/16x16.png';
+
+            loadStackupBtn.onmouseover = () => {
+                loadStackupIcon.src = highlightSrc;
+            };
+            loadStackupBtn.onmouseout = () => {
+                loadStackupIcon.src = normalSrc;
+            };
+        });
+
+        // --- DATA PROCESSING & CALCULATION ---
+        function requestAnalysis() {
+            if (signalGroups.length === 0) {
+                processedGroupData = [];
+                buildTable();
+                return;
+            }
+            adsk.fusionSendData('requestAnalysis', JSON.stringify(signalGroups));
+        }
+
+        // --- TABLE BUILDING & UI UPDATES ---
+        function buildTable() {
+            const groups = processedGroupData; // Use the processed data from Python
+            const tableBody = document.getElementById('myTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = '';
+            if (!groups) return;
+            
+            // Update table headers
+            const lengthUnit = displayUnit === 'in' ? '[in]' : '[mm]';
+            document.querySelector('#myTable thead tr th:nth-child(2)').innerHTML = `l ${lengthUnit}`;
+            document.querySelector('#myTable thead tr th:nth-child(3)').innerHTML = `&Delta;l ${lengthUnit}`;
+            
+            // Sort data locally before rendering
+            const direction = sortDirections[sortColumn] || 'asc';
+            groups.sort((a, b) => {
+                let valA = a[sortColumn], valB = b[sortColumn];
+                if (typeof valA === 'string') return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                return direction === 'asc' ? (valA || 0) - (valB || 0) : (valB || 0) - (valA || 0);
+            });
+
+            groups.forEach((group) => {
+                const row = tableBody.insertRow();
+                row.id = `group-row-${group.originalIndex}`;
+                
+                const len = displayUnit === 'in' ? (group.total_length_mm * MM_TO_INCH).toFixed(4) : group.total_length_mm.toFixed(2);
+                const len_diff = displayUnit === 'in' ? (group.length_diff_mm * MM_TO_INCH).toFixed(4) : group.length_diff_mm.toFixed(2);
+                const isSignalNameEmpty = document.getElementById('signalNameInput')?.value.trim() === '';
+                
+                const frequencyMHz = parseFloat(document.getElementById('frequencyMHz').value);
+                let phase_diff_deg = null;
+                if (group.delay_diff_ns != null && frequencyMHz !== 0) {
+                    phase_diff_deg = calculatePhaseDifference(frequencyMHz, group.delay_diff_ns);
+                }
+
+                row.innerHTML = `
+                    <td>
+                        <span class="action-btn remove-btn" onclick="removeGroup(${group.originalIndex})">X</span>
+                        <span id="add-btn-${group.originalIndex}" class="action-btn add-btn" onclick="addToGroup(${group.originalIndex})">+</span>
+                        <span class="action-btn expand-btn" onclick="toggleSignalDetails(this, ${group.originalIndex})">&#9654;</span>
+                        <span class="row-text" onclick='onGroupClick(${JSON.stringify(group.signals)})'>${group.name}</span>
+                    </td>
+                    <td>${len}</td>
+                    <td>${len_diff}</td>
+                    <td>${group.total_delay_ns != null ? `${group.total_delay_ns.toFixed(3)} ns` : 'N/A'}</td>
+                    <td>${group.delay_diff_ns != null ? `${group.delay_diff_ns.toFixed(3)} ns` : 'N/A'}</td>
+                    <td>${phase_diff_deg != null ? `${phase_diff_deg.toFixed(1)} &deg;` : 'N/A'}</td>
+                    <td>${group.has_airwire ? 'Yes' : 'No'}</td> 
+                `;
+                const addBtn = document.getElementById(`add-btn-${group.originalIndex}`);
+                addBtn.style.pointerEvents = isSignalNameEmpty ? 'none' : 'auto';
+                addBtn.style.opacity = isSignalNameEmpty ? '0.5' : '1';
+            });
+        }
+        
+        function toggleSignalDetails(expandBtn, originalIndex) {
+            const groupRow = document.getElementById(`group-row-${originalIndex}`);
+            const isExpanded = expandBtn.textContent === '▲';
+            
+            const existingDetails = document.querySelectorAll(`.detail-for-group-${originalIndex}`);
+            existingDetails.forEach(row => row.remove());
+
+            if (isExpanded) {
+                expandBtn.textContent = '▶';
+            } else {
+                expandBtn.textContent = '▲';
+                const groupData = processedGroupData.find(g => g.originalIndex === originalIndex);
+                if (!groupData) return;
+
+                let nextRow = groupRow.nextSibling;
+                const tableBody = document.getElementById('myTable').getElementsByTagName('tbody')[0];
+                
+                const sortedLayers = Object.keys(groupData.layer_analysis).sort((a, b) => parseInt(a) - parseInt(b));
+
+                for (const layer of sortedLayers) {
+                    const layerData = groupData.layer_analysis[layer];
+                    const detailRow = tableBody.insertRow(nextRow ? Array.from(tableBody.rows).indexOf(nextRow) : -1);
+                    detailRow.className = `detail-row detail-for-group-${originalIndex}`;
+                    
+                    const len = displayUnit === 'in' ? (layerData.length_mm * MM_TO_INCH).toFixed(3) : layerData.length_mm.toFixed(2);
+                    const delay = layerData.delay_ns != null ? `${layerData.delay_ns.toFixed(3)} ns` : 'N/A';
+                    
+                    detailRow.innerHTML = `
+                        <td style="padding-left: 50px;">${layer === '0' ? 'Vias' : `Layer ${layer}`}</td>
+                        <td>${len}</td>
+                        <td></td>
+                        <td>${delay}</td>
+                        <td colspan="3"></td>
+                    `;
+                }
+            }
+        }
+
+        function sortBy(key) {
+            sortDirections[key] = (sortDirections[key] || 'asc') === 'asc' ? 'desc' : 'asc';
+            sortColumn = key;
+            buildTable(); // Re-sort and re-render locally
+        }
+
+        function updateAllButtonStates() {
+            const signalNameInput = document.getElementById('signalNameInput');
+            const measureRouteBtn = document.getElementById('measureRouteBtn');
+            const isSignalNameEmpty = signalNameInput.value.trim() === '';
+            const isSignalNameValid = signalList.includes(signalNameInput.value.trim());
+            measureRouteBtn.disabled = isSignalNameEmpty || !isSignalNameValid;
+
+            const addButtons = document.querySelectorAll('.add-btn');
+            addButtons.forEach(btn => {
+                btn.style.pointerEvents = isSignalNameEmpty || !isSignalNameValid ? 'none' : 'auto';
+                btn.style.opacity = isSignalNameEmpty || !isSignalNameValid ? '0.5' : '1';
+            });
+        }
+
+        // --- ACTIONS ---
+        function onGroupClick(signals) {
+            adsk.fusionSendData('groupClicked', JSON.stringify(signals));
+        }
+
+        function removeGroup(originalIndex) {
+            signalGroups.splice(originalIndex, 1);
+            requestAnalysis();
+        }
+
+        function addToGroup(originalIndex) {
+            const signalName = document.getElementById('signalNameInput').value.trim();
+            if (signalName && signalGroups[originalIndex] && !signalGroups[originalIndex].includes(signalName)) {
+                signalGroups[originalIndex].push(signalName);
+                requestAnalysis();
+            }
+        }
+
+        function onMeasureRoute() {
+            const newSignalName = document.getElementById('signalNameInput').value.trim();
+            if (!newSignalName) return;
+            if (!signalGroups.flat().includes(newSignalName)) {
+                signalGroups.push([newSignalName]);
+                requestAnalysis();
+            }
+        }
+        
+        function onLoadStackupLocalButton() {
+            adsk.fusionSendData('loadStackupFileLocal', '');
+        }
+        
+        function onRefreshButton() {
+            requestAnalysis();
+        }
+
+        // --- FUSION 360 HANDLER ---
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === "setAnalysisResults") {
+                        processedGroupData = JSON.parse(data);
+                        buildTable();
+                    } else if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action == 'setEagleData') {
+                        eetb_EagleData_processJson(data);
+                        if (signalSelection.length > 0) {
+                            document.getElementById("signalNameInput").value = signalSelection[0];
+                        }
+                        updateAllButtonStates();
+                    } else if (action === 'showWarning') {
+                        const warningDiv = document.getElementById('warningDisplay');
+                        warningDiv.textContent = data;
+                        warningDiv.style.display = 'block';
+                    } else if (action === 'setStackupFileName') {
+                        updateStackupDisplay(data);
+                        requestAnalysis();
+                    } else if (action === 'setSignalGroups') {
+                        signalGroups = JSON.parse(data);
+                        requestAnalysis();
+                    }
+                } catch (e) {
+                    displayError(`Exception: ${e}\nData: ${data}`);
+                }
+                return "OK";
+            },
+        };
+
+        function displayError(error_string) {
+            const errorDiv = document.getElementById('errorDisplay');
+            if (errorDiv) {
+                errorDiv.textContent = error_string;
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="input-group" style="display: flex; align-items: center; gap: 15px;">
+        <label for="stackupFilename">Stackup:</label>
+        <span id="stackupFilename" style="flex-grow: 1; text-align: right; font-style: italic; color: #a7a6a6; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;"></span>
+        <button id="loadStackupFromDiskBtn" onclick="onLoadStackupLocalButton()" class="secondary" style="display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; padding: 0">
+            <img class="load-stackup-icon" src="" style="width: 20px; height: 20px;" alt="Upload from disk">
+            <script>
+                // Set the image source using JavaScript variables
+                document.addEventListener('DOMContentLoaded', function() {
+                    const loadStackupBtn = document.getElementById('loadStackupFromDiskBtn');
+                    const loadStackupIcon = loadStackupBtn.querySelector('.load-stackup-icon');
+                    loadStackupIcon.src = icon_path + '/Pull/16x16-dark.png';
+                });
+            </script>
+        </button>
+        <label for="frequencyMHz">Frequency: </label>
+        <input type="number" id="frequencyMHz" value="100" style="width: 70px;">
+        <label>MHz</label>
+        <span style="margin-left: auto;">mm</span>
+        <label class="switch">
+            <input type="checkbox" id="unitToggle">
+            <span class="slider"></span>
+        </label>
+        <span>in</span>
+    </div>
+    
+    <table id="myTable">
+        <colgroup>
+            <col style="width: auto;"> <!-- Signal group (leftmost, resizes) -->
+            <col style="width: 100px;"> <!-- Routed length -->
+            <col style="width: 80px;">  <!-- Length diff -->
+            <col style="width: 80px;">  <!-- t_PD [ns] -->
+            <col style="width: 80px;">  <!-- t_PD diff [ns] -->
+            <col style="width: 80px;">  <!-- Phase diff [deg] -->
+            <col style="width: 70px;">  <!-- Airwire -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th onclick="sortBy('name')">Signal group</th>
+                <th onclick="sortBy('total_length_mm')">l [mm]</th>
+                <th onclick="sortBy('length_diff_mm')">&Delta;l [mm]</th>
+                <th onclick="sortBy('total_delay_ns')">t<sub>PD</sub>[ns]</th>
+                <th onclick="sortBy('delay_diff_ns')">&Delta;t<sub>PD</sub>[ns]</th>
+                <th onclick="sortBy('phase_diff_deg')">&Delta;&phi; [&deg;]</div></th>
+                <th>Airwire</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <div id="warningDisplay" class="warning-message"></div>
+    <div id="errorDisplay" class="error-message"></div>
+    <div class="input-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+        <label for="signalNameInput">Add signal</label>
+        <input type="text" id="signalNameInput" style="flex-grow: 1;">
+        <button id="measureRouteBtn" onclick="onMeasureRoute()">New group</button>
+    </div>
+
+    <div class="button-group">
+        <button onclick="onRefreshButton()" class="secondary">Refresh</button>
+        <button onclick="eetb_onCloseButton()" class="secondary">Close</button>
+    </div>
+</body>
+</html>

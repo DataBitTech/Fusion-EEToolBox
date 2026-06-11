@@ -1,0 +1,146 @@
+//======================================================
+// string_hashset.ulp
+//
+// Eagle v6.5 or later is required
+//
+// Utility file that provides a simple hashset implementation
+// 
+// This software is released under the MIT license:
+//
+// MIT License
+// 
+// Copyright (c) 2025 Pal Szabo
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//======================================================
+
+enum {  __FASTLOOKUP_STRING_HASH_SUBSET_IDX_0       = 0,
+        __FASTLOOKUP_STRING_HASH_SUBSET_IDX_A       = 10,
+        __FASTLOOKUP_STRING_HASH_SUBSET_IDX_OTHER   = 36,
+        __NUM_FASTLOOKUP_STRING_HASH_SUBSETS        = 37
+};
+
+string  __fastlookup_string_hashset[];
+int     __fastlookup_string_hashsubset_offset[];
+int     __fastlookup_string_hashsubset_size[];
+int     __fastlookup_string_hashset_size = 0;
+
+
+int __get_fastlookup_hashsubset_idx(string query)
+{
+    int subset_idx;
+    
+    if (isalpha(query[0]))
+        subset_idx = __FASTLOOKUP_STRING_HASH_SUBSET_IDX_A + toupper(query[0]) - 'A';
+    else if (isdigit(query[0]))
+        subset_idx = __FASTLOOKUP_STRING_HASH_SUBSET_IDX_0 + query[0] - '0';
+    else 
+        subset_idx = __FASTLOOKUP_STRING_HASH_SUBSET_IDX_OTHER;
+    
+    return subset_idx;
+}
+
+
+/**************/
+/* PUBLIC API */
+/**************/
+
+void init_fastlookup_string_hashset()
+{
+    for (int i = 0; i < __NUM_FASTLOOKUP_STRING_HASH_SUBSETS; ++i)
+    {
+        __fastlookup_string_hashsubset_size[i] = 0;
+        __fastlookup_string_hashsubset_offset[i] = -1;
+    }
+    __fastlookup_string_hashset_size = 0;
+}
+
+
+void add_to_fastlookup_string_hashset(string new_element)
+{
+    int subset_idx = __get_fastlookup_hashsubset_idx(new_element);
+    int insert_offset;
+    int i;
+    
+    // is this the first element in the subset?
+    if (__fastlookup_string_hashsubset_size[subset_idx])
+    {
+        insert_offset = __fastlookup_string_hashsubset_offset[subset_idx] + __fastlookup_string_hashsubset_size[subset_idx];
+    } else
+    {
+        insert_offset = -1;
+        // we need to find the previous subset with any element
+        for (i = subset_idx - 1; i >= 0; --i)
+        {
+            if (__fastlookup_string_hashsubset_size[i])
+            {
+                insert_offset = __fastlookup_string_hashsubset_offset[i] + __fastlookup_string_hashsubset_size[i];
+                break;
+            }
+        }
+        
+        // if none found, this subset will start the large array
+        if (insert_offset < 0)
+            insert_offset = 0;
+        
+        __fastlookup_string_hashsubset_offset[subset_idx] = insert_offset;
+    }
+    
+    // first move all elements one down the line
+    for (i = __fastlookup_string_hashset_size; i > insert_offset; --i)
+        __fastlookup_string_hashset[i] = __fastlookup_string_hashset[i-1];
+    
+    // insert element
+    __fastlookup_string_hashset[insert_offset] = strupr(new_element);
+    
+    // bookkeeping
+    __fastlookup_string_hashset_size++;
+    __fastlookup_string_hashsubset_size[subset_idx]++;
+    for (i = subset_idx + 1; i < __NUM_FASTLOOKUP_STRING_HASH_SUBSETS; ++i)
+        if (__fastlookup_string_hashsubset_size[i])
+            __fastlookup_string_hashsubset_offset[i]++;
+}
+
+
+int in_fastlookup_string_hashset(string query)
+{
+    int subset_idx = __get_fastlookup_hashsubset_idx(query);
+    if (!__fastlookup_string_hashsubset_size[subset_idx])
+        return 0;
+    
+    query = strupr(query);
+    int set_offset = __fastlookup_string_hashsubset_offset[subset_idx];
+    for (int i = 0; i < __fastlookup_string_hashsubset_size[subset_idx]; ++i)
+        if (__fastlookup_string_hashset[set_offset + i] == query)
+            return 1;
+        
+    return 0;
+}
+
+
+int get_fastlookup_string_hashset_size()
+{
+    return __fastlookup_string_hashset_size;
+}
+
+
+string get_fastlookup_string_hashset_element(int index)
+{
+    return (index < __fastlookup_string_hashset_size) ? __fastlookup_string_hashset[index] : "";
+}

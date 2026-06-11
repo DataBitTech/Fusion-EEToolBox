@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Green flat surface (smaller, perspective view only) -->
+  <polygon points="16,40 0,64 64,64 48,40"
+           fill="#2e7d32"/>
+
+  <!-- IC package (upright, no perspective, 6 pins total) -->
+  <g transform="translate(32,30)">
+    <!-- IC body -->
+    <rect x="-16" y="-28" width="32" height="48" rx="2" fill="#2b2b2b"/>
+
+    <!-- Pins left (3) -->
+    <g fill="#c0c0c0">
+      <rect x="-24" y="-24" width="8" height="8"/>
+      <rect x="-24" y="-8"  width="8" height="8"/>
+      <rect x="-24" y="8"  width="8" height="8"/>
+    </g>
+
+    <!-- Pins right (3) -->
+    <g fill="#c0c0c0">
+      <rect x="16" y="-24" width="8" height="8"/>
+      <rect x="16" y="-8"  width="8" height="8"/>
+      <rect x="16" y="8"  width="8" height="8"/>
+    </g>
+
+    <!-- Top marking -->
+    <rect x="-6" y="-10" width="12" height="24" fill="#555"/>
+
+    <!-- Orientation notch -->
+    <circle cx="-8" cy="-18" r="4" fill="#777"/>
+  </g>
+</svg>

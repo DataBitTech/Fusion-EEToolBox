@@ -1,0 +1,72 @@
+/* 
+This software is released under the MIT license:
+MIT License
+
+Copyright (c) 2025 Pal Szabo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+=====================================================
+*/
+
+/* Autocomplete Styles */
+.autocomplete-dropdown {
+    position: absolute;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    max-height: 120px;
+    overflow-y: auto;
+    display: none;
+    z-index: 1000;
+}
+
+.autocomplete-entry {
+    padding: 10px 8px;           
+    cursor: pointer;
+    color: #000;                
+    font-size: 1.1em;            
+    background-color: #fff;     
+}
+
+.autocomplete-entry.active {
+    background-color: #d8eaff;
+    color: #000;
+}
+
+/* Dark theme */
+body.dark-theme .autocomplete-dropdown {
+    background-color: #333a42;
+    border: 1px solid #55595F;
+}
+
+body.dark-theme .autocomplete-entry {
+    color: #d1d1d1;
+    background-color: #333a42;
+    padding: 5px 8px;
+    font-size: 1em;
+}
+
+body.dark-theme .autocomplete-entry:hover {
+    background-color: #444c55;
+}
+
+body.dark-theme .autocomplete-entry.active,
+body.dark-theme .autocomplete-entry.active:hover {
+    background-color: #007ACC;
+    color: #FFFFFF;
+}

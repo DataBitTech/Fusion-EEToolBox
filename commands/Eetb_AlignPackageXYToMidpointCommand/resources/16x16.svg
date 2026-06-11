@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+
+  <!-- Green background -->
+  <rect x="0" y="0" width="16" height="16" fill="#2e7d32"/>
+
+  <!-- Golden circle (center) -->
+  <circle cx="8" cy="8" r="5" fill="#d4af37"/>
+
+  <!-- Black inner circle -->
+  <circle cx="8" cy="8" r="2" fill="#1c1c1c"/>
+
+  <!-- Grey circle (upper right) -->
+  <circle cx="13" cy="4" r="4" fill="#9e9e9e"/>
+
+  <line x1="13" y1="4" x2="8" y2="8" stroke="#ffffffff" stroke-width="1"/>
+
+</svg>

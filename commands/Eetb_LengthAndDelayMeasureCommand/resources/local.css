@@ -1,0 +1,131 @@
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th, td {
+    border: 1px solid black;
+    padding: 8px;
+    text-align: left;
+}
+th {
+    cursor: pointer;
+}
+.row-text {
+    cursor: pointer;
+    color: blue;
+}
+.expand {
+    margin-right: 5px;
+    cursor: pointer;
+}
+.action-btn {
+    cursor: pointer;
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+.remove-btn { color: red; }
+.add-btn { color: green; }
+.expand-btn { }
+.warning-message {
+    color: #FFD700; /* Gold */
+    background-color: #4F4F4F;
+    border: 1px solid #FFD700;
+    padding: 8px;
+    margin-top: 10px;
+    display: none;
+    font-size: 0.9em;
+    border-radius: 4px;
+}
+
+/* Hide increment/decrement arrows for number input */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Slider Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #55595F;
+    transition: .4s;
+    border-radius: 24px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+body.light-theme th {
+    background-color: #E8E8E8;
+}
+body.light-theme th, body.light-theme td {
+    border-color: #000000;
+}
+body.light-theme .row-text {
+    color: #0000FF;
+}
+body.light-theme .detail-row td {
+    border: none !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    background-color: #f0f0f0; /* Lighter background for details in light theme */
+}
+
+body.dark-theme th, body.dark-theme td {
+    border: none;
+    text-align: left;
+}
+
+body.dark-theme th {
+    background-color: #3D4954; /* New header background from screenshot */
+    color: #D1D1D1;
+    cursor: pointer;
+}
+
+body.dark-theme .detail-row td {
+    border: none !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    background-color: #38424d; /* Slightly different background for details */
+}
+
+body.dark-theme .row-text {
+    color: #ADD8E6;
+}
+
+body.dark-theme input:checked + .slider {
+    background-color: #007ACC;
+}
+body.dark-theme input:checked + .slider:before {
+    transform: translateX(26px);
+}
+

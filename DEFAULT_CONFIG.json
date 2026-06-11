@@ -1,0 +1,52 @@
+{
+    "documents": {
+    },
+    "global": {
+        "checklist_items": {
+            "items": [
+                {
+                    "id": 1,
+                    "text": "Check if stopif stop mask should be removed for vias (if applicable)"
+                },
+                {
+                    "id": 2,
+                    "text": "Update via fill layer (if applicable)"
+                }
+            ]
+        },
+        "Eetb_DefineUserScriptAndULPButtonCommand": {
+            "user_scripts": [
+                {
+                    "workspace": "ElectronFootprintEnvironment",
+                    "is_ulp": true,
+                    "name": "Add name/value",
+                    "path": "set_name_value.ulp"
+                },
+                {
+                    "workspace": "ElectronSymbolEnvironment",
+                    "is_ulp": true,
+                    "name": "Add name/value",
+                    "path": "set_name_value.ulp"
+                },
+                {
+                    "workspace": "BoardLayoutEnvironement",
+                    "is_ulp": true,
+                    "name": "Find",
+                    "path": "find.ulp"
+                },
+                {
+                    "workspace": "BoardLayoutEnvironement",
+                    "is_ulp": true,
+                    "name": "Import BMP",
+                    "path": "import-bmp-simple.ulp"
+                },
+                {
+                    "workspace": "SchEditorEnvironement",
+                    "is_ulp": true,
+                    "name": "Find",
+                    "path": "find.ulp"
+                }
+            ]
+        }
+    }
+}

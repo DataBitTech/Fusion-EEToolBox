@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Via Fence</title>
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_autocomplete.css">
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
+    <!-- Include the common JS -->
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <script>
+        // Global variable to hold the timeout ID
+        let inputChangedTimeout;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Attach autocompletion
+            const signalInputFields = [
+                document.getElementById("signal_name"),
+                document.getElementById("via_net")
+            ];
+            eetb_textFields_attachAutoComplete(signalInputFields, signalList);
+
+            // Attach on-change event
+             const input = document.getElementById("preview-layer-select");
+             if (input) {
+                input.addEventListener('input', () => {
+                    onInputChanged();
+                });
+            }
+
+            // Attach validation
+            const lengthInputs = ["spacing", "offset", "initial_step", "drill"];
+            lengthInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    // Attach unit on change (when user finishes editing)
+                    input.addEventListener('change', () => {
+                        if (validateLengthInput(input, id != "spacing" && id != "drill")) {
+                            appendGridUnitIfMissing(input);
+                            onInputChanged();
+                        }
+                    });
+                    validateLengthInput(input, id != "spacing" && id != "drill"); // Initial validation
+                    appendGridUnitIfMissing(input); // initial unit append
+                }
+            });
+
+            // Attach text input validation
+            const textInputs = ["signal_name", "via_net"];
+            textInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('input', onInputChanged);
+                }
+            });
+
+            // Set default selections
+            selectGeometryType('signal');
+            selectOffsetSide('side_a');
+
+            // Initial visibility check for offset side
+            checkOffsetVisibility();
+        });
+
+        /**
+         * Validates that an input contains a non-negative number, 
+         * optionally followed by a length specifier (mm, um, cm, in, mil).
+         */
+        function validateLengthInput(input, zeroValueAllowed = true) {
+            const val = input.value.trim();
+            // Regex: non-negative float (optional leading dot), optional space, optional unit
+            const regex = /^(\d*\.?\d+)\s*(mm|um|mic|cm|in|mil|inch)?$/i;
+
+            const isValid = regex.test(val);
+            if (isValid && !zeroValueAllowed){
+                // Extract the first group (the numeric part) and check if it's zero
+                const numericPart = parseFloat(regex.exec(val)[1]);
+                if (numericPart === 0) {
+                    input.classList.add('invalid');
+                    displayError("Value cannot be zero.");
+                    return false;
+                }
+            }
+            if (isValid) {
+                input.classList.remove('invalid');
+                document.getElementById('errorDisplay').style.display = 'none';
+            } else {
+                input.classList.add('invalid');
+                displayError("Invalid format. Use a non-negative number optionally followed by mm, um, mic, cm, in, inch, or mil.");
+            }
+            return isValid;
+        }
+
+        /**
+         * Appends the current grid unit to the input value if it's missing.
+         */
+        function appendGridUnitIfMissing(input) {
+            const val = input.value.trim();
+            // Regex: matches a non-negative number WITHOUT a unit
+            const regex = /^(\d*\.?\d+)\s*$/i;
+            if (regex.test(val)) {
+                input.value = val + " " + (window.gridUnit || "mm");
+            }
+        }
+
+        function selectGeometryType(type) {
+            document.getElementById('geometry_type').value = type;
+            
+            // Visual feedback
+            document.querySelectorAll('#geometry-selector .option-icon').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.getElementById('btn-' + type).classList.add('selected');
+
+            // Visibility of sub-inputs
+            if (type === 'signal') {
+                document.getElementById('row-signal-name').classList.remove('hidden');
+                document.getElementById('row-geometry-layers').classList.add('hidden');
+            } else {
+                document.getElementById('row-signal-name').classList.add('hidden');
+                document.getElementById('row-geometry-layers').classList.remove('hidden');
+            }
+            onInputChanged();
+        }
+
+        function selectOffsetSide(side) {
+            document.getElementById('offset_side').value = side;
+            
+            document.querySelectorAll('#offset-side-selector .option-icon').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.getElementById('btn-' + side.replace('_', '-')).classList.add('selected');
+            onInputChanged();
+        }
+
+        function checkOffsetVisibility() {
+            const val = document.getElementById('offset').value.trim();
+            // Extract number part for visibility check
+            const numPart = parseFloat(val);
+            const sideSelectorRow = document.getElementById('row-offset-side');
+            
+            if (!isNaN(numPart) && numPart !== 0) {
+                sideSelectorRow.classList.remove('hidden');
+            } else {
+                sideSelectorRow.classList.add('hidden');
+            }
+        }
+
+        function populateLayerDropdown(selectId, layers) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            layers.forEach(layer => {
+                const option = document.createElement('option');
+                option.value = layer.number;
+                option.textContent = `${layer.number}: ${layer.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function onOkButton() {
+            sendToBackend('okButtonClicked');
+        }
+
+        function onCancelButton() {
+            adsk.fusionSendData('cancelButtonClicked', '');
+        }
+
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action == 'setEagleData') {
+                        eetb_EagleData_processJson(data);
+
+                        // Populate layer dropdowns
+                        const usedGeometryLayers = layerData.filter(layer => layer.number == 20 || (layer.number >= 100 && layer.number < 256 && layer.used == true));
+                        const userLayers = layerData.filter(layer => layer.number == 0 || (layer.number >= 100 && layer.number < 256));
+                        populateLayerDropdown('geometry-layer-select', usedGeometryLayers);
+                        populateLayerDropdown('preview-layer-select', userLayers);
+
+                        // If there was a pending preview layer from setParameters, apply it now
+                        if (window.pendingPreviewLayer) {
+                            document.getElementById('preview-layer-select').value = window.pendingPreviewLayer;
+                            delete window.pendingPreviewLayer;
+                        }
+
+                        // If there is signal selection, pre-fill signal_name
+                        if (signalSelection.length > 0) {
+                            document.getElementById("signal_name").value = signalSelection[0];
+                        }
+
+                        // Update button state after data is loaded
+                        validateAllInputs();
+                    } else if (action == 'setParameters') {
+                        const params = JSON.parse(data);
+                        
+                        if (params.spacing) {
+                            const input = document.getElementById('spacing');
+                            input.value = params.spacing;
+                            validateLengthInput(input, false);
+                        }
+                        if (params.drill) {
+                            const input = document.getElementById('drill');
+                            input.value = params.drill;
+                            validateLengthInput(input, true);
+                        }
+                        if (params.via_net) {
+                            document.getElementById('via_net').value = params.via_net;
+                        }
+                        if (params.preview_layer) {
+                            const previewSelect = document.getElementById('preview-layer-select');
+                            if (previewSelect.options.length > 0) {
+                                previewSelect.value = params.preview_layer;
+                            } else {
+                                // Store it for when setEagleData finishes populating the dropdown
+                                window.pendingPreviewLayer = params.preview_layer;
+                            }
+                        }
+                        
+                        validateAllInputs();
+                    }
+                } catch (e) {
+                    displayError(e.toString())
+                }
+                return "OK";
+            },
+        }
+
+        function validateAllInputs() {
+            const okButton = document.getElementById('okButton');
+            if (!okButton) return;
+
+            // Check if any length inputs are invalid
+            const lengthInputs = ["spacing", "offset", "initial_step", "drill"];
+            let hasInvalidInputs = false;
+
+            lengthInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input && input.classList.contains('invalid')) {
+                    hasInvalidInputs = true;
+                }
+            });
+
+            // Check if required text inputs are empty
+            const geometryType = document.getElementById('geometry_type').value;
+            let hasEmptyRequiredInputs = false;
+
+            // Only check signal_name if geometry type is 'signal'
+            if (geometryType === 'signal') {
+                const signalNameInput = document.getElementById('signal_name');
+                if (signalNameInput && !signalNameInput.value.trim()) {
+                    hasEmptyRequiredInputs = true;
+                }
+            }
+
+            // Always check via_net
+            const viaNetInput = document.getElementById('via_net');
+            if (viaNetInput && !viaNetInput.value.trim()) {
+                hasEmptyRequiredInputs = true;
+            }
+
+            // Disable button if there are invalid inputs or empty required fields
+            okButton.disabled = hasInvalidInputs || hasEmptyRequiredInputs;
+            
+            // Return the opposite of okButton.disabled
+            return !okButton.disabled;
+        }
+
+        function onInputChanged() {
+            allInputsValid = validateAllInputs();
+            
+            // Clear any existing timeout
+            if (inputChangedTimeout) {
+                clearTimeout(inputChangedTimeout);
+            }
+
+            // If all inputs are valid, send data to backend
+            if (allInputsValid) {
+                // Set a new timeout to execute sendToBackend after 500ms
+                inputChangedTimeout = setTimeout(function() {
+                    sendToBackend("doShowPreview");
+                }, 750);
+            }
+        }
+
+        function sendToBackend(eventName) {
+                const data = {
+                    'geometry_type': document.getElementById('geometry_type').value,
+                    'signal_name': document.getElementById('signal_name').value,
+                    'geometry_layer': document.getElementById('geometry-layer-select').value,
+                    'spacing': document.getElementById('spacing').value,
+                    'offset': document.getElementById('offset').value,
+                    'offset_side': document.getElementById('offset_side').value,
+                    'initial_step': document.getElementById('initial_step').value,
+                    'drill': document.getElementById('drill').value,
+                    'via_net': document.getElementById('via_net').value,
+                    'preview_layer': document.getElementById('preview-layer-select').value
+                };
+
+                // Send data to backend using Fusion's communication mechanism
+            adsk.fusionSendData(eventName, JSON.stringify(data));
+        }
+
+        function displayError(error_string) {
+            const errorDiv = document.getElementById('errorDisplay');
+            if (errorDiv) {
+                errorDiv.textContent = error_string;
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</head>
+<body>
+<form onsubmit="return false;">
+    <table class="form-layout">
+        <tbody>
+            <tr>
+                <td><label>Source geometry</label></td>
+                <td>
+                    <div id="geometry-selector" class="option-icon-group">
+                        <img src="Source_signal.png" id="btn-signal" class="option-icon" alt="Signal" title="Follow signal geometry" onclick="selectGeometryType('signal')">
+                        <img src="Source_line.png" id="btn-lines" class="option-icon" alt="Lines" title="Follow lines" onclick="selectGeometryType('lines')">
+                    </div>
+                    <input type="hidden" id="geometry_type" value="signal">
+                </td>
+            </tr>
+            <tr id="row-signal-name">
+                <td><label for="signal_name">Signal name</label></td>
+                <td><input type="text" id="signal_name" name="signal_name" /></td>
+            </tr>
+            <tr id="row-geometry-layers" class="hidden">
+                <td><label>On layer</label></td>
+                <td>
+                    <select id="geometry-layer-select" name="geometry_layer"></select>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="spacing">Spacing</label></td>
+                <td><input type="text" id="spacing" name="spacing" value="1" /></td>
+            </tr>
+            <tr>
+                <td><label for="initial_step">Initial step</label></td>
+                <td><input type="text" id="initial_step" name="initial_step" value="0" /></td>
+            </tr>
+            <tr>
+                <td><label for="offset">Offset</label></td>
+                <td><input type="text" id="offset" name="offset" value="0" oninput="checkOffsetVisibility()" /></td>
+            </tr>
+            <tr id="row-offset-side" class="hidden">
+                <td><label>Side</label></td>
+                <td>
+                    <div id="offset-side-selector" class="option-icon-group">
+                        <img src="side_a.png" id="btn-side-a" class="option-icon" alt="Side A" title="Side A" onclick="selectOffsetSide('side_a')">
+                        <img src="side_b.png" id="btn-side-b" class="option-icon" alt="Side B" title="Side B" onclick="selectOffsetSide('side_b')">
+                        <img src="side_symmetric.png" id="btn-symmetrical" class="option-icon" alt="Symmetrical" title="Symmetrical on both sides" onclick="selectOffsetSide('symmetrical')">
+                    </div>
+                    <input type="hidden" id="offset_side" value="side_a">
+                </td>
+            </tr>
+            <tr>
+                <td><label for="drill">Drill</label></td>
+                <td><input type="text" id="drill" name="drill" value="1" /></td>
+            </tr>
+            <tr>
+                <td><label for="via_net">Via net</label></td>
+                <td><input type="text" id="via_net" name="via_net" value="" /></td>
+            </tr>
+            <tr>
+                <td><label>Preview layer</label></td>
+                <td>
+                    <select id="preview-layer-select" name="preview_layer"></select>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="errorDisplay" class="error-message"></div>
+    <div class="button-group">
+        <button type="button" id="okButton" onclick="onOkButton()" class="secondary">OK</button>
+        <button type="button" onclick="onCancelButton()" class="secondary">Cancel</button>
+    </div>
+</form>
+</body>
+</html>

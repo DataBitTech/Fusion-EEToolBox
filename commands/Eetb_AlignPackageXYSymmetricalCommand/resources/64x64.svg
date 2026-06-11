@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+
+  <!-- Circuit board green background -->
+  <rect x="0" y="0" width="64" height="64" fill="#2e7d32"/>
+
+  <!-- Golden pads -->
+  <rect x="4" y="4" width="28" height="20" rx="2" fill="#d4af37"/>
+  <rect x="32" y="40" width="28" height="20" rx="2" fill="#d4af37"/>
+
+  <!-- Chip body -->
+  <rect x="22" y="8" width="20" height="48" rx="3" fill="#1c1c1c"/>
+
+  <!-- White legs landing on pads -->
+  <!-- Upper-left leg -->
+  <rect x="12" y="10" width="10" height="8" fill="#bfbfbf"/>
+
+  <!-- Lower-right leg -->
+  <rect x="42" y="46" width="10" height="8" fill="#bfbfbf"/>
+
+</svg>

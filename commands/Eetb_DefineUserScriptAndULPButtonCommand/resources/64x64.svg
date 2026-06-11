@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <g font-family="Arial, sans-serif" font-size="48" fill="white">
+    <!-- Opening bracket -->
+    <text x="4" y="44">[</text>
+    <!-- Closing bracket -->
+    <text x="46" y="44">]</text>
+  </g>
+
+
+  <g font-family="Consolas" font-size="20" fill="white">
+    <!-- "usr" on first row -->
+    <text x="16" y="28">usr</text>
+    <!-- "def" on second row -->
+    <text x="16" y="46">def</text>
+  </g>
+</svg>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Swap signal routings</title>
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_autocomplete.css">
+    <link rel="stylesheet" type="text/css" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <style>
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const inputFields = [
+                document.getElementById("input1"),
+                document.getElementById("input2")
+            ];
+            eetb_textFields_attachAutoComplete(inputFields, partList);
+            selectRotation('transfer', document.getElementById('rotate-transfer'));
+            selectMirroring('transfer', document.getElementById('mirroring-transfer'));
+        });
+
+        function selectRotation(option, element) {
+            document.getElementById('part-rotation-selector').value = option;
+
+            // Update visual selection
+            document.querySelectorAll('#rotation-icon-group img').forEach(img => {
+                img.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function selectMirroring(option, element) {
+            document.getElementById('part-mirroring-selector').value = option;
+
+            // Update visual selection
+            document.querySelectorAll('#mirroring-icon-group img').forEach(img => {
+                img.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function onOkButton() {
+            const input1 = document.getElementById("input1").value;
+            const input2 = document.getElementById("input2").value;
+            const partRotationSelection = document.getElementById("part-rotation-selector").value;
+            const partMirroringSelection = document.getElementById("part-mirroring-selector").value;
+
+            const jsonData = JSON.stringify({
+                'parts_to_swap': [input1, input2],
+                'part_rotation_option': partRotationSelection,
+                'part_mirroring_option': partMirroringSelection
+            });
+            adsk.fusionSendData('okButtonClicked', jsonData);
+        }
+
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action == 'setEagleData') {
+                        eetb_EagleData_processJson(data);
+
+                        // Fill input fields if signalSelection has elements
+                        if (partSelection.length > 0) {
+                            document.getElementById("input1").value = partSelection[0];
+                        }
+                        if (partSelection.length > 1) {
+                            document.getElementById("input2").value = partSelection[1];
+                        }
+                    }
+                } catch (e) {
+                    displayError(e.toString())
+                }
+                return "OK";
+            },
+        }
+        function displayError(error_string)
+        {
+            const errorDiv = document.getElementById('errorDisplay');
+            if (errorDiv) {
+                errorDiv.textContent = error_string;
+                errorDiv.style.display = 'block'; // Make sure it's visible
+            }
+        }
+    </script>
+</head>
+<body>
+<form onsubmit="return false;">
+    <table class="form-layout">
+        <tbody>
+            <tr>
+                <td><label for="input1">Part A</label></td>
+                <td><input type="text" id="input1" name="input1" /></td>
+            </tr>
+            <tr>
+                <td><label for="input2">Part B</label></td>
+                <td><input type="text" id="input2" name="input2" /></td>
+            </tr>
+            <tr>
+                <td><label>Rotation</label></td>
+                <td>
+                    <div id="rotation-icon-group" class="option-icon-group">
+                        <img src="rotation_transfer.png" id="rotate-transfer" class="option-icon" alt="Transfer" title="Transfer rotation between components" onclick="selectRotation('transfer', this)">
+                        <img src="rotation_none.png" id="rotate-none" class="option-icon" alt="None" title="Keep original rotation after swapping" onclick="selectRotation('none', this)">
+                        <img src="rotation_antisymmetric.png" id="rotate-antisymmetric" class="option-icon" alt="Antisymmetric" title="Transfer rotation with an additional 180&deg;" onclick="selectRotation('antisymmetric', this)">
+                    </div>
+                    <input type="hidden" id="part-rotation-selector" value="transfer">
+                </td>
+            </tr>
+            <tr>
+                <td><label>Mirroring</label></td>
+                <td>
+                    <div id="mirroring-icon-group" class="option-icon-group">
+                        <img src="mirroring_transfer.png" id="mirroring-transfer" class="option-icon" alt="Transfer" title="Transfer mirroring between components" onclick="selectMirroring('transfer', this)">
+                        <img src="mirroring_keep.png" id="mirroring-keep" class="option-icon" alt="Keep" title="Keep original mirroring after swapping" onclick="selectMirroring('keep', this)">
+                        <img src="mirroring_antisymmetric.png" id="mirroring-antisymmetric" class="option-icon" alt="Antisymmetric" title="Force mirroring after swapping" onclick="selectMirroring('antisymmetric', this)">
+                    </div>
+                    <input type="hidden" id="part-mirroring-selector" value="transfer">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="errorDisplay" class="error-message"></div> <!-- New error display div -->
+    <div class="button-group">
+        <button type="button" onclick="onOkButton()" class="secondary">OK</button>
+        <button type="button" onclick="eetb_onCancelButton()" class="secondary">Cancel</button>
+    </div>
+</form>
+</body>
+</html>

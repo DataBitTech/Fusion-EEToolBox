@@ -1,0 +1,21 @@
+<svg width="16px" height="16px" viewBox="0 0 16 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <rect id="path-1" x="0" y="0" width="16" height="12" rx="1"></rect>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="0.1" fill="none" fill-rule="evenodd">
+        <g id="Artboard">
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <use id="Rectangle" fill="#37474F" xlink:href="#path-1"></use>
+            <g id="Grid" mask="url(#mask-2)" stroke="#546E7A" stroke-width="1">
+                <line x1="2" y1="0" x2="2" y2="13" id="Path"></line>
+                <line x1="10" y1="0" x2="10" y2="13" id="Path"></line>
+                <line x1="0" y1="2" x2="16" y2="2" id="Path"></line>
+                <line x1="0" y1="10" x2="16" y2="10" id="Path"></line>
+            </g>
+            <polyline id="Cyan-Wave" stroke="#00B0FF" stroke-width="1" mask="url(#mask-2)" points="8 6 9 6 10 3 12 9 14 3 15 6 16 6"></polyline>
+            <polyline id="Green-Wave" stroke="#00E676" stroke-width="1" mask="url(#mask-2)" points="0 6 2 6 3 0.5 4.5 11.5 6 6 8 6"></polyline>
+        </g>
+    </g>
+</svg>

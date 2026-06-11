@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Left connector / tree lines -->
+  <g stroke="#cfcfcf" stroke-width="1" stroke-linecap="square">
+    <line x1="1" y1="2" x2="1" y2="12"/>
+    <line x1="1" y1="3" x2="6" y2="3"/>
+    <line x1="1" y1="6" x2="6" y2="6"/>
+    <line x1="1" y1="9" x2="6" y2="9"/>
+  </g>
+
+  <!-- Table container -->
+  <rect x="6" y="0" width="10" height="13" fill="#b0b0b0"/>
+
+  <!-- Table header -->
+  <rect x="6" y="0" width="10" height="3" fill="#9a9a9a"/>
+
+  <!-- Table rows -->
+  <g fill="#e0e0e0">
+    <rect x="6" y="4" width="10" height="2"/>
+    <rect x="6" y="7" width="10" height="2"/>
+    <rect x="6" y="10" width="10" height="2"/>
+  </g>
+
+  <!-- Table column divider -->
+  <line x1="12" y1="0" x2="12" y2="13" stroke="#8a8a8a" stroke-width="0.75"/>
+
+  <!-- Simplified factory icon (lower right, grey) -->
+  <g fill="rgb(75, 75, 75)">
+    <!-- Factory base -->
+    <rect x="3" y="12" width="8" height="6"/>
+
+    <!-- Sawtooth roof -->
+    <polygon points="3,12 5,10 7,12 9,10 11,12"/>
+
+    <!-- Chimney -->
+    <rect x="9" y="7" width="2" height="5"/>
+  </g>
+
+  <g fill="rgb(215, 215, 215)">
+    <!-- Windows -->
+    <rect x="4" y="13" width="2" height="2"/>
+    <rect x="8" y="13" width="2" height="2"/>
+  </g>
+</svg>

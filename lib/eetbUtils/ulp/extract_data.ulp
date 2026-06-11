@@ -1,0 +1,898 @@
+//======================================================
+// extract_data.ulp
+//
+// Eagle v6.5 or later is required
+//
+// Extract different data from Eagle/Fusion in JSON format
+// 
+// This software is released under the MIT license:
+//
+// MIT License
+// 
+// Copyright (c) 2025 Pal Szabo
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//======================================================
+
+#usage "en: Export electronics data to JSON file\n"
+       "Usage: RUN extract_data.ulp -o <outfile> [-sigdata <signal1> [signal2 ...]] [-siglist] [-sigsel] [-partdata <part1> [part2 ...]] [-partlist] [-partsel] [-lyrdata] [-attrlist]"
+
+#include "string_hashset.ulp"
+#include "json_format.ulp"
+
+
+enum {  ITEM_EXPORT_TYPE_LIST,
+        ITEM_EXPORT_TYPE_DATA,
+        ITEM_EXPORT_TYPE_SELECTION
+};
+
+enum { false, true };
+
+string signal_names[];
+string part_names[];
+int layer_numbers[];
+int num_signal_names = 0;
+int num_part_names = 0;
+int num_layer_numbers = 0;
+string outfile = "output.json";
+
+int export_signal_list      = false;
+int export_signal_data      = false;
+int export_signal_selection = false;
+int export_used_layers      = false;
+int export_part_list        = false;
+int export_part_selection   = false;
+int export_part_data        = false;
+int export_attribute_list   = false;
+int export_geometry_data    = false;
+int export_package_data     = false;
+int use_user_grid_units     = false; // default to using mm in output
+int isUnitMil               = false; // default to using mm in output
+
+string signal_export_tag[];
+string part_export_tag[];
+
+
+/********************/
+/* HELPER FUNCTIONS */
+/********************/
+
+int parse_args() 
+{
+    int i = 1;
+    string opt = "";
+    int expect_signal_names = false;
+    int expect_part_names = false;
+    int expect_layer_numbers = false;
+
+    while (i < argc) 
+    {
+        // handle list of signal_names
+        if (expect_signal_names)
+        {
+            while ((i < argc) && (argv[i][0] != '-'))
+                signal_names[num_signal_names++] = strupr(argv[i++]);
+            expect_signal_names = false;
+            continue;
+        } else if (expect_part_names)
+        {
+            while ((i < argc) && (argv[i][0] != '-'))
+                part_names[num_part_names++] = strupr(argv[i++]);
+            expect_part_names = false;
+            continue;
+        } else if (expect_layer_numbers)
+        {
+            while ((i < argc) && (argv[i][0] != '-'))
+                layer_numbers[num_layer_numbers++] = strtod(argv[i++]);
+            expect_layer_numbers = false;
+            continue;
+        } else
+        {
+            if (argv[i][0] != '-')
+                return 1;
+            
+            opt = strlwr(argv[i]);
+        }
+        
+        // -sigdata (signal data)
+        if (opt == "-sigdata")
+        {
+            export_signal_data = true;
+            expect_signal_names = true;
+        }
+        
+        // -siglist (signal list)
+        else if (opt == "-siglist")
+            export_signal_list = true;
+
+        // -sigsel
+        else if (opt == "-sigsel")
+            export_signal_selection = true;
+        
+        // -lyrdata
+        else if (opt == "-lyrdata")
+            export_used_layers = true;
+        
+        // -partlist
+        else if (opt == "-partlist")
+            export_part_list = true;
+        
+        // -partsel
+        else if (opt == "-partsel")
+            export_part_selection = true;
+        
+        // -partdata (part data)
+        else if (opt == "-partdata")
+        {
+            export_part_data = true;
+            expect_part_names = true;
+        }
+        
+        // -packagedata
+        else if (opt == "-packagedata")
+        {
+            export_package_data = true;
+        }
+        
+        // -geodata (layers)
+        else if (opt == "-geodata")
+        {
+            export_geometry_data = true;
+            expect_layer_numbers = true;
+        }
+        
+        // -attrlist
+        else if (opt == "-attrlist")
+            export_attribute_list = true;
+        
+        // -userunit
+        else if (opt == "-userunit")
+            use_user_grid_units = true;
+
+        // -o (output file)
+        else if (opt == "-o") 
+        {
+            if (i > argc - 1) return 2;
+            outfile = argv[++i];
+        }
+        
+        else return 3 + i;
+        
+        ++i;
+    }
+    
+    return 0;
+}
+
+
+int signal_name_match(string name) 
+{
+    for (int i = 0; i < num_signal_names; ++i)
+        if (signal_names[i] == name)
+            return true;
+    return false;
+}
+
+
+int part_name_match(string name) 
+{
+    for (int i = 0; i < num_part_names; ++i)
+        if (part_names[i] == name)
+            return true;
+    return false;
+}
+
+
+int number_match(int number)
+{
+    for (int i = 0; i < num_layer_numbers; ++i)
+        if (layer_numbers[i] == number)
+            return true;
+    return false;
+}
+
+
+void set_export_unit(void)
+{
+    isUnitMil = false;
+    if (use_user_grid_units)
+    {
+        if (board) board(B)
+            isUnitMil = ((B.grid.unit == GRID_UNIT_MIL) || (B.grid.unit == GRID_UNIT_INCH));
+        else if (schematic) schematic (S)
+            isUnitMil = ((S.grid.unit == GRID_UNIT_MIL) || (S.grid.unit == GRID_UNIT_INCH));
+    }
+}
+
+
+/***********************************/
+/* PRIMITIVE OBJECTS JSON HANDLING */
+/***********************************/
+
+void json_add_wire_data(UL_WIRE W, int trailer)
+{
+    json_indent_push();
+    
+    json_begin_object("", JSON_NONE);
+        json_indent_reset();
+        json_int("layer",       W.layer,                                        JSON_COMMA_AND_SPACE);
+        json_real("width",      (isUnitMil) ? u2mil(W.width) : u2mm(W.width),   JSON_COMMA_AND_SPACE);
+        json_real("curve",      W.curve,                                        JSON_COMMA_AND_SPACE);
+        if (W.arc)
+        {
+            json_real("xc",     (isUnitMil) ? u2mil(W.arc.xc) : u2mm(W.arc.xc), JSON_COMMA_AND_SPACE);
+            json_real("yc",     (isUnitMil) ? u2mil(W.arc.yc) : u2mm(W.arc.yc), JSON_COMMA_AND_SPACE);
+            json_real("radius", (isUnitMil) ? u2mil(W.arc.radius) : u2mm(W.arc.radius), JSON_COMMA_AND_SPACE);
+        }
+        json_int("cap",         W.cap,                                          JSON_COMMA_AND_SPACE);
+        json_real("x1",         (isUnitMil) ? u2mil(W.x1) : u2mm(W.x1),         JSON_COMMA_AND_SPACE);
+        json_real("y1",         (isUnitMil) ? u2mil(W.y1) : u2mm(W.y1),         JSON_COMMA_AND_SPACE);
+        json_real("x2",         (isUnitMil) ? u2mil(W.x2) : u2mm(W.x2),         JSON_COMMA_AND_SPACE);
+        json_real("y2",         (isUnitMil) ? u2mil(W.y2) : u2mm(W.y2),         JSON_NONE);
+    json_end_object(trailer);
+    
+    json_indent_pop();
+}
+
+
+void json_add_via_data(UL_VIA V, int trailer)
+{
+    /* HACK: support the new 64 layer setups - the VIA command does not accept layers > 256 */
+    int via_end_layer = V.end;
+    if (via_end_layer > 16)
+        via_end_layer -= 240;
+
+    json_indent_push();
+ 
+    json_begin_object("", JSON_NONE);
+        json_indent_reset();
+        json_real("x",      (isUnitMil) ? u2mil(V.x) : u2mm(V.x),           JSON_COMMA_AND_SPACE);
+        json_real("y",      (isUnitMil) ? u2mil(V.y) : u2mm(V.y),           JSON_COMMA_AND_SPACE);
+        json_int("start",   V.start,                                        JSON_COMMA_AND_SPACE);
+        json_int("end",     via_end_layer,                                  JSON_COMMA_AND_SPACE);
+        json_real("drill",  (isUnitMil) ? u2mil(V.drill) : u2mm(V.drill),   JSON_NONE);
+    json_end_object(trailer);
+    
+    json_indent_pop();
+}
+
+
+void json_add_layer_data(UL_LAYER L, int trailer)
+{
+    json_indent_push();
+    
+    json_begin_object("", JSON_NONE);
+        json_indent_reset();
+        json_int("number",      L.number,         JSON_COMMA_AND_SPACE);
+        json_string("name",     L.name,           JSON_COMMA_AND_SPACE);
+        json_bool("used",       L.used,           JSON_COMMA_AND_SPACE);
+        json_bool("visible",    L.visible,        JSON_COMMA_AND_SPACE);
+        json_color( "color",    palette(L.color), JSON_NONE);
+    json_end_object(trailer);
+    
+    json_indent_pop();
+}
+
+
+void json_add_attribute_data(UL_ATTRIBUTE A, int trailer)
+{
+    json_indent_push();
+    
+    json_begin_object("", JSON_NONE);
+        json_indent_reset();
+        json_string("name",     A.name,           JSON_COMMA_AND_SPACE);
+        json_string("value",    A.value,          JSON_COMMA_AND_SPACE);
+        json_bool("display",    A.display,        JSON_NONE);
+    json_end_object(trailer);
+    
+    json_indent_pop();
+}
+
+
+void json_add_circle_data(UL_CIRCLE C, int trailer)
+{
+    json_indent_push();
+    
+    json_begin_object("", JSON_NONE);
+        json_indent_reset();
+        json_int("layer",       C.layer,                                        JSON_COMMA_AND_SPACE);
+        json_real("radius",     (isUnitMil) ? u2mil(C.radius) : u2mm(C.radius), JSON_COMMA_AND_SPACE);
+        json_real("width",      (isUnitMil) ? u2mil(C.width)  : u2mm(C.width),  JSON_COMMA_AND_SPACE);
+        json_real("x",          (isUnitMil) ? u2mil(C.x) : u2mm(C.x),           JSON_COMMA_AND_SPACE);
+        json_real("y",          (isUnitMil) ? u2mil(C.y) : u2mm(C.y),           JSON_NONE);
+    json_end_object(trailer);
+    
+    json_indent_pop();
+}
+
+
+/***********************************/
+/* COMPOSITE OBJECTS JSON HANDLING */
+/***********************************/
+
+void json_add_signal_data(UL_SIGNAL S, int trailer, int add_wires, int add_vias)
+{
+    if (add_wires || add_vias)
+        json_begin_object("", JSON_NEWLINE);
+        
+            if (add_wires || add_vias)
+                json_string("name", S.name, JSON_COMMA_AND_NEWLINE);
+            else
+                json_string("", S.name, trailer);
+            
+            // Wires
+            if (add_wires)
+            {
+                json_begin_array("wires", JSON_NEWLINE);
+                    int first = true;
+                    S.wires(W)
+                    {
+                        if (!first)
+                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                        
+                        json_add_wire_data(W, JSON_NONE);
+                        first = false;
+                    }
+                    json_trailing_chars(JSON_NEWLINE);
+                json_end_array(add_vias ? JSON_COMMA_AND_NEWLINE : JSON_NEWLINE);
+            }
+                
+            // Vias
+            if (add_vias)
+            {
+                json_begin_array("vias", JSON_NEWLINE);
+                    int first = true;
+                    S.vias(V) 
+                    {
+                        if (!first)
+                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                        
+                        json_add_via_data(V, JSON_NONE);
+                        first = false;
+                    }
+                    json_trailing_chars(JSON_NEWLINE);
+                json_end_array(JSON_NEWLINE);
+            }
+    
+    if (add_wires || add_vias)
+        json_end_object(trailer);
+}
+
+
+void json_add_net_data(UL_NET N, int trailer, int add_class)
+{
+    if (add_class)
+    {
+        json_indent_push();
+        json_begin_object("", JSON_NONE);
+        json_indent_reset();
+    }
+        
+        if (add_class)
+        {
+            json_string("name", N.name, JSON_COMMA_AND_SPACE);
+            json_string("class", N.class.name, JSON_NONE); 
+        } else
+        {
+            json_string("", N.name, trailer);
+        }
+
+    if (add_class)
+    {
+        json_end_object(trailer);
+        json_indent_pop();
+    }
+}
+
+
+void json_add_element_data(UL_ELEMENT E, int trailer, int add_details)
+{
+    if (add_details)
+        json_begin_object("", JSON_NEWLINE);
+        
+            if (add_details)
+                json_string("name", E.name, JSON_COMMA_AND_NEWLINE);
+            else
+                json_string("", E.name, trailer);
+            
+            // Details
+            if (add_details)
+            {
+                json_indent_push();
+                json_string("value",    E.value,                                JSON_COMMA_AND_NEWLINE);
+                json_real("angle",      E.angle,                                JSON_COMMA_AND_SPACE);
+                json_indent_reset();
+                json_bool("locked",     E.locked,                               JSON_COMMA_AND_SPACE);
+                json_bool("mirror",     E.mirror,                               JSON_COMMA_AND_SPACE);
+                json_string("package",  E.package.name,                         JSON_COMMA_AND_SPACE);
+                json_real("x",          (isUnitMil) ? u2mil(E.x) : u2mm(E.x),   JSON_COMMA_AND_SPACE);
+                json_real("y",          (isUnitMil) ? u2mil(E.y) : u2mm(E.y),   JSON_COMMA_AND_NEWLINE);
+                json_indent_pop();
+                json_begin_array("attributes", JSON_NEWLINE);
+                    int first = true;
+                    E.attributes(A)
+                    {
+                        if (A.name == "NAME" || A.name == "VALUE")
+                            continue;
+                        
+                        if (!first)
+                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                        
+                        json_add_attribute_data(A, JSON_NONE);
+                        first = false;
+                    }
+                    json_trailing_chars(JSON_NEWLINE);
+                json_end_array(JSON_NEWLINE);
+            }
+    
+    if (add_details)
+        json_end_object(trailer);
+}
+
+
+void json_add_part_data(UL_PART P, int trailer, int add_details)
+{
+    if (add_details)
+        json_begin_object("", JSON_NEWLINE);
+        
+            if (add_details)
+                json_string("name", P.name, JSON_COMMA_AND_SPACE);
+            else
+                json_string("", P.name, trailer);
+            
+            // Details
+            if (add_details)
+            {
+                json_indent_push();
+                json_indent_reset();
+                json_string("value",    P.value,                                JSON_COMMA_AND_SPACE);
+                json_string("device",   P.device.name,                          JSON_COMMA_AND_SPACE);
+                json_string("package",  P.device.package.name,                  JSON_COMMA_AND_SPACE);
+                json_string("headline", P.device.headline,                      JSON_COMMA_AND_SPACE);
+                json_bool("populate",   P.populate,                             JSON_COMMA_AND_NEWLINE);
+                json_indent_pop();
+                json_begin_array("attributes", JSON_NEWLINE);
+                    int first = true;
+                    P.attributes(A)
+                    {
+                        if (!first)
+                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                        
+                        json_add_attribute_data(A, JSON_NONE);
+                        
+                        first = false;
+                    }
+                    json_trailing_chars(JSON_NEWLINE);
+                json_end_array(JSON_NEWLINE);
+            }
+            
+    if (add_details)
+        json_end_object(trailer);
+}
+
+
+void json_add_package_data(UL_ELEMENT E)
+{
+    UL_PACKAGE P = E.package;
+    
+    json_begin_object("", JSON_NEWLINE);
+        json_string("name", P.name, JSON_COMMA_AND_NEWLINE);
+        json_real("x1",    (isUnitMil) ? u2mil(P.area.x1) : u2mm(P.area.x1),    JSON_COMMA_AND_NEWLINE);
+        json_real("y1",    (isUnitMil) ? u2mil(P.area.y1) : u2mm(P.area.y1),    JSON_COMMA_AND_NEWLINE);
+        json_real("x2",    (isUnitMil) ? u2mil(P.area.x2) : u2mm(P.area.x2),    JSON_COMMA_AND_NEWLINE);
+        json_real("y2",    (isUnitMil) ? u2mil(P.area.y2) : u2mm(P.area.y2),    JSON_COMMA_AND_NEWLINE);
+        json_begin_array("contacts", JSON_NEWLINE);
+            int first = true;
+            P.contacts(C)
+            {               
+                real x, y, dx, dy, angle, dia, drill;
+                int rndness;
+                string name;
+                int is_pad = false;
+                
+                if (C.pad)
+                {
+                    x       = (isUnitMil) ? u2mil(C.pad.x)                      : u2mm(C.pad.x);
+                    y       = (isUnitMil) ? u2mil(C.pad.y)                      : u2mm(C.pad.y);
+                    dia     = (isUnitMil) ? u2mil(C.pad.diameter[LAYER_TOP])    : u2mm(C.pad.diameter[LAYER_TOP]);
+                    drill   = (isUnitMil) ? u2mil(C.pad.drill)                  : u2mm(C.pad.drill);
+                    angle   = C.pad.angle;
+                    name    = C.pad.name;
+                    is_pad = true;
+                } else if (C.smd)
+                {
+                    x       = (isUnitMil) ? u2mil(C.smd.x)                      : u2mm(C.smd.x);
+                    y       = (isUnitMil) ? u2mil(C.smd.y)                      : u2mm(C.smd.y);
+                    dx      = (isUnitMil) ? u2mil(C.smd.dx[C.smd.layer])        : u2mm(C.smd.dx[C.smd.layer]);
+                    dy      = (isUnitMil) ? u2mil(C.smd.dy[C.smd.layer])        : u2mm(C.smd.dy[C.smd.layer]);
+                    rndness = C.smd.roundness;
+                    angle   = C.smd.angle;
+                    name    = C.smd.name;
+                }
+                
+                // calculate the library state - first transform back to the center
+                real E_x = (isUnitMil) ? u2mil(E.x) : u2mm(E.x);
+                real E_y = (isUnitMil) ? u2mil(E.y) : u2mm(E.y);
+                x = x - E_x;
+                y = y - E_y;
+                angle = angle - E.angle;
+                
+                // Apply inverse rotation matrix (clockwise rotation)
+                real angle_rad = E.angle * PI / 180.0;
+                real x_prime = x * cos(angle_rad) + y * sin(angle_rad);
+                real y_prime = -x * sin(angle_rad) + y * cos(angle_rad);
+                
+                
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                first = false;
+                
+                json_begin_object("", JSON_NONE);
+                    json_indent_push();
+                    json_indent_reset();
+                    json_string("type", (is_pad) ? "pad" : "smd", JSON_COMMA_AND_SPACE);
+                        json_string("name",     name,       JSON_COMMA_AND_SPACE);
+                        json_real("x",          x_prime,    JSON_COMMA_AND_SPACE);
+                        json_real("y",          y_prime,    JSON_COMMA_AND_SPACE);
+                        json_real("angle",      angle,      JSON_COMMA_AND_SPACE);
+                    if (is_pad)
+                    {
+                        json_real("diameter",   dia,        JSON_COMMA_AND_SPACE);
+                        json_real("drill",      drill,      JSON_NONE);
+                    } else
+                    {
+                        json_real("dx",         dx,         JSON_COMMA_AND_SPACE);
+                        json_real("dy",         dy,         JSON_COMMA_AND_SPACE);
+                        json_int( "roundness",  rndness,    JSON_NONE);
+                    }
+                    json_indent_pop();
+                json_end_object(JSON_NONE);
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NEWLINE);
+    json_end_object(JSON_NONE);
+}
+
+
+
+/**************************/
+/* TOP-lEVEL JSON OUTPUTS */
+/**************************/
+
+void write_signals(int export_type)
+{
+    if (board) board(B) 
+    {
+        int first = true;
+        json_begin_array(signal_export_tag[export_type], JSON_NEWLINE);
+            B.signals(S) 
+            {
+                if (export_type == ITEM_EXPORT_TYPE_DATA && !signal_name_match(S.name)) 
+                    continue;
+                
+                if (export_type == ITEM_EXPORT_TYPE_SELECTION && !ingroup(S)) 
+                    continue;
+                
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                
+                json_add_signal_data(S, JSON_NONE, export_type == ITEM_EXPORT_TYPE_DATA, export_type == ITEM_EXPORT_TYPE_DATA);
+                first = false;
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NONE);
+    } else if (schematic) schematic(SCH)
+    {
+        int first = true;
+        json_begin_array(signal_export_tag[export_type], JSON_NEWLINE);
+            SCH.nets(N) 
+            {
+                if (export_type == ITEM_EXPORT_TYPE_DATA && !signal_name_match(N.name)) 
+                    continue;
+                
+                if (export_type == ITEM_EXPORT_TYPE_SELECTION && !ingroup(N)) 
+                    continue;
+                
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                
+                json_add_net_data(N, JSON_NONE, export_type == ITEM_EXPORT_TYPE_DATA);
+                first = false;
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NONE);
+    }
+}
+
+
+void write_parts(int export_type)
+{
+    if (board) board(B) 
+    {
+        int first = true;
+        json_begin_array(part_export_tag[export_type], JSON_NEWLINE);
+            B.elements(E) 
+            {
+                if (export_type == ITEM_EXPORT_TYPE_DATA && !part_name_match(E.name)) 
+                    continue;
+                
+                if (export_type == ITEM_EXPORT_TYPE_SELECTION && !ingroup(E)) 
+                    continue;
+                
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                
+                json_add_element_data(E, JSON_NONE, export_type == ITEM_EXPORT_TYPE_DATA);
+                
+                first = false;
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NONE);
+        
+        /* if the package data is also requested, add it here */
+        if (export_package_data && (export_type == ITEM_EXPORT_TYPE_DATA))
+        {
+            first = true;
+            init_fastlookup_string_hashset();
+
+            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            json_begin_array("package_data", JSON_NEWLINE);
+                B.elements(E) 
+                {
+                    if (!part_name_match(E.name)) 
+                        continue;
+                    
+                    if (!in_fastlookup_string_hashset(E.package.name))
+                    {
+                        add_to_fastlookup_string_hashset(E.package.name);
+                        
+                        if (!first)
+                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                        
+                        json_add_package_data(E);
+                        
+                        first = false;
+                    }
+                }
+                json_trailing_chars(JSON_NEWLINE);
+            json_end_array(JSON_NONE);
+        }        
+    } else if (schematic) schematic(SCH)
+    {
+        int first = true;
+        json_begin_array(part_export_tag[export_type], JSON_NEWLINE);
+            SCH.parts(P)
+            {
+                if (!P.device.package)
+                    continue;
+                
+                if (export_type == ITEM_EXPORT_TYPE_DATA && !part_name_match(P.name)) 
+                    continue;
+                
+                if (export_type == ITEM_EXPORT_TYPE_SELECTION && !ingroup(P))
+                    continue;
+                
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                
+                json_add_part_data(P, JSON_NONE, export_type == ITEM_EXPORT_TYPE_DATA);
+                
+                first = false;
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NONE);
+    }
+}
+
+
+void write_layers()
+{
+    board(B) 
+    {
+        int first = true;
+        json_begin_array("layer_data", JSON_NEWLINE);
+            B.layers(L) 
+            {   
+                if (!first)
+                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                
+                json_add_layer_data(L, JSON_NONE);
+                
+                first = false;
+            }
+            json_trailing_chars(JSON_NEWLINE);
+        json_end_array(JSON_NONE);
+    } 
+}
+
+
+void write_attributes()
+{
+    init_fastlookup_string_hashset();
+    
+    if (board) board(B) 
+    {
+        B.elements(E) E.attributes(A)
+        {
+            if (!in_fastlookup_string_hashset(A.name))
+                add_to_fastlookup_string_hashset(A.name);
+        }
+    } else if (schematic) schematic(S)
+    {
+        S.sheets(SH) SH.parts(P) P.instances(I) I.attributes(A)
+        {
+            if (!in_fastlookup_string_hashset(A.name))
+                add_to_fastlookup_string_hashset(A.name);
+        }
+    }
+    
+    int num_unique_attributes = get_fastlookup_string_hashset_size();
+    json_begin_array("attribute_list", JSON_NEWLINE);
+        for (int i = 0; i < num_unique_attributes; ++i)
+            json_string("", get_fastlookup_string_hashset_element(i), (i != num_unique_attributes - 1) ? JSON_COMMA_AND_NEWLINE : JSON_NEWLINE);
+    json_end_array(JSON_NONE);
+}
+
+
+void write_geometry_data()
+{
+    if (num_layer_numbers == 0)
+        return;
+    if (board) board(B)
+    {
+        int first = true;
+        json_begin_object("geometry_data", JSON_NEWLINE);
+            json_begin_array("wires", JSON_NEWLINE);
+                B.wires(W)
+                {
+                    if (!number_match(W.layer))
+                        continue;
+                    
+                    if (!first)
+                        json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                    
+                    json_add_wire_data(W, JSON_NONE);
+                    first = false;
+                }
+                json_trailing_chars(JSON_NEWLINE);
+            json_end_array(JSON_COMMA_AND_NEWLINE);
+            
+            first = true;
+            json_begin_array("circles", JSON_NEWLINE);
+                B.circles(C)
+                {
+                    if (!number_match(C.layer))
+                        continue;
+                    
+                    if (!first)
+                        json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                    
+                    json_add_circle_data(C, JSON_NONE);
+                    first = false;
+                }
+                json_trailing_chars(JSON_NEWLINE);
+            json_end_array(JSON_NONE);
+        json_end_object(JSON_NONE);
+    }
+}
+
+
+/****************/
+/* MAIN PROGRAM */
+/****************/
+
+int parse_args_retval;
+if (parse_args_retval = parse_args()) {
+    dlgMessageBox("Invalid arguments.\nUsage: RUN save_signals.ulp -g <signal1> [signal2 ...] -o <outfile> [-b]");
+    exit(parse_args_retval);
+}
+
+// init some internal string arrays
+signal_export_tag[ITEM_EXPORT_TYPE_DATA]        = "signal_data";
+signal_export_tag[ITEM_EXPORT_TYPE_LIST]        = "signal_list";
+signal_export_tag[ITEM_EXPORT_TYPE_SELECTION]   = "signal_selection";
+
+part_export_tag[ITEM_EXPORT_TYPE_DATA]          = "part_data";
+part_export_tag[ITEM_EXPORT_TYPE_LIST]          = "part_list";
+part_export_tag[ITEM_EXPORT_TYPE_SELECTION]     = "part_selection";
+
+json_init();
+set_export_unit();
+
+output(outfile, "wt") 
+{
+    int isFirstOutput = true;
+    json_begin_object("", JSON_NEWLINE);
+        // this must be the first output
+        json_string("unit", isUnitMil ? "mil" : "mm", JSON_COMMA_AND_NEWLINE);
+    
+        if (export_signal_list)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_signals(ITEM_EXPORT_TYPE_LIST);
+            isFirstOutput = false;
+        }
+        
+        if (export_signal_data)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_signals(ITEM_EXPORT_TYPE_DATA);
+            isFirstOutput = false;
+        }
+        
+        if (export_signal_selection)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_signals(ITEM_EXPORT_TYPE_SELECTION);
+            isFirstOutput = false;
+        }
+        
+        if (export_part_list)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_parts(ITEM_EXPORT_TYPE_LIST);
+            isFirstOutput = false;
+        }
+        
+        if (export_part_selection)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_parts(ITEM_EXPORT_TYPE_SELECTION);
+            isFirstOutput = false;
+        }
+        
+        if (export_part_data)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_parts(ITEM_EXPORT_TYPE_DATA);
+            isFirstOutput = false;
+        }
+            
+        if (export_used_layers)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_layers();
+            isFirstOutput = false;
+        } 
+        
+        if (export_attribute_list)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_attributes();
+            isFirstOutput = false;
+        }
+        
+        if (export_geometry_data)
+        {
+            if (!isFirstOutput)
+                json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+            write_geometry_data();
+            isFirstOutput = false;
+        }
+        json_trailing_chars(JSON_NEWLINE);
+    json_end_object(JSON_NEWLINE);
+}
