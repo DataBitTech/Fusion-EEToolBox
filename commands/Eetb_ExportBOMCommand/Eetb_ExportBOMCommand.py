@@ -152,7 +152,8 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
             list[list[str]]: A list of lists where each inner list represents a row of
                             the exported data in EuroCircuits format.
         """
-        filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'])
+        significant_attributes = self._get_significant_attributes(self.attribute_map_col_names_EuroCircuits)
+        filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'], False, significant_attributes)
         headers = ['Manufacturer Part Number', 'Description', 'Reference designators', 'Quantity', 'Supplier part number', 'Supplier', 'Package name', 'Mounting type', 'URL']
         bom_data = [headers]
         for component in filtered_part_data:
@@ -185,7 +186,8 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
             list[list[str]]: A list of lists where each inner list represents a row of
                             the exported data in JLCPCB format.
         """
-        filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'])
+        significant_attributes = self._get_significant_attributes(self.attribute_map_col_names_JLCPCB)
+        filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'], False, significant_attributes)
         jlcpcb_part_num_used = self.get_selected_attribute(self.attribute_map_col_names_JLCPCB[0]) != 'None'
         headers = ['Comment', 'Designator', 'Footprint']
         if jlcpcb_part_num_used:
@@ -309,7 +311,7 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
                             the exported data in raw format.
         """
         if collect_by_value:
-            filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'])
+            filtered_part_data = self.group_by_parts(filtered_part_data, ['angle', 'locked', 'mirror', 'x', 'y'], True)
             headers = ['Qty', 'Value', 'Footprint Name', 'Parts']
         else:
             headers = ['Part', 'Value', 'Footprint Name']
@@ -363,3 +365,27 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
             if contact.get('type') == 'pad':
                 return True
         return False
+
+
+    def _get_significant_attributes(self, attr_map_col_names: list[tuple[str, bool]]) -> list[str]:
+        """
+        Extracts the names of mapped attributes from the attribute mapping column names.
+
+        This function retrieves the selected attribute names based on the attribute mapping column names 
+        and returns a list of attribute names that need to be distuinguished
+
+        Args:
+            attr_map_col_names (list[tuple[str, bool]]): A list of tuples where each tuple
+                                                        contains an attribute name (str) and
+                                                        a boolean indicating if it's optional (True)
+                                                        or required (False).
+
+        Returns:
+            list[str]: A list of attribute names that need to be distuinguished for value based grouping
+        """
+        significant_attributes = []
+        for col_to_attr_map in attr_map_col_names:
+            attr_name = self.get_selected_attribute(col_to_attr_map)
+            if attr_name != 'None':
+                significant_attributes.append(attr_name)
+        return significant_attributes

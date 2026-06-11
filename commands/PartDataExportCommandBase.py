@@ -165,7 +165,7 @@ class PartDataExportCommandBase(CommandBase):
         eetbutil.config_manager.store_document_option(self.document_id, self.command_id, format_name, user_selection)
 
 
-    def group_by_parts(self, part_data: list[dict], keys_to_ignore: list[str] = []) -> list[dict]:
+    def group_by_parts(self, part_data: list[dict], keys_to_ignore: list[str] = [], consider_all_attributes = False, significant_attributes: list[str] = []) -> list[dict]:
         """
         Groups part data by part number, aggregating attributes from multiple entries.
 
@@ -192,7 +192,7 @@ class PartDataExportCommandBase(CommandBase):
         keys_to_ignore.append('name')
         for part in part_data:
             designator = part.get("name", "")
-            serialData = self._serialize_part_data(part, keys_to_ignore)
+            serialData = self._serialize_part_data(part, keys_to_ignore, consider_all_attributes, significant_attributes)
             if serialData not in group_dict.keys():
                 group_dict[serialData] = (designator, 1, part)
             else:
@@ -968,27 +968,46 @@ class PartDataExportCommandBase(CommandBase):
     # UTILITY FUNCTIONS #
     #####################
 
-    def _serialize_part_data(self, part: dict, keys_to_ignore: list[str] = []) -> str:
-        """
-        Serializes the part data to a string format. This is a helper method for
-        comparison of parts in order to group them by value and similar attributes
+    def _serialize_part_data(self, part: dict, keys_to_ignore: list[str] = [], consider_all_attributes = False, significant_attributes: list[str] = []) -> str:
+        """Serializes part data into a string representation.
 
-        This method takes a dictionary representing part data and converts it into a
-        serialized string format. It allows for specifying keys to ignore during the
-        serialization process, which is useful for excluding certain attributes from
-        the comparison.
+        This method takes a dictionary representing a part and converts it into a
+        string representation. It allows for filtering out specific keys, considering
+        all attributes, or focusing on significant attributes. The serialized string
+        is formatted as a tab-separated list of key-value pairs.
+
         Args:
-            part (dict): A dictionary containing the part data to be serialized.
-            keys_to_ignore (list[str], optional): A list of keys to exclude from the
-                serialization process. Defaults to an empty list.
+            part (dict): A dictionary representing the part data, where keys are
+                attribute names and values are attribute values.
+            keys_to_ignore (list[str], optional): A list of keys to exclude from
+                the serialization. Defaults to an empty list.
+            consider_all_attributes (bool, optional): If True, includes all
+                attributes in the serialization. If False, only includes attributes
+                specified in `significant_attributes`. Defaults to False.
+            significant_attributes (list[str], optional): A list of attribute names
+                to include in the serialization when `consider_all_attributes` is False.
+                Defaults to an empty list.
 
         Returns:
-            str: The serialized part data as a string.
+            str: A tab-separated string representation of the part data, with each
+                key-value pair separated by a tab character.
         """
         serialized_data = ''
         for key, value in part.items():
             if key not in keys_to_ignore:
-                serialized_data += f"{key}={value};"
+                if key == "attributes" and isinstance(value, list):
+                    filtered_attrs = value
+                    if not consider_all_attributes:
+                        # Only include attributes that are in significant_attributes
+                        filtered_attrs = [attr for attr in value if attr.get("name") in significant_attributes]
+                    # Sort the filtered attributes by name to ensure consistent ordering
+                    filtered_attrs = sorted(filtered_attrs, key=lambda attr: attr.get("name", ""))
+                    serialized_data += ",".join([f"{attr['name']}={attr['value']}" for attr in filtered_attrs])
+                else:
+                    serialized_data += f"{key}={value},"
+        # Remove the trailing comma
+        if serialized_data.endswith(","):
+            serialized_data = serialized_data[:-1]
         return serialized_data
 
 

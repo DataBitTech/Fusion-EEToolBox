@@ -3,9 +3,9 @@
 	"type":	"addin",
 	"author":	"Pal Szabo",
 	"description":	{
-		"en":	"Extended toolbox with many new commands for the electronics workspace in Fusion"
+		"en":	"Extended toolbox with useful commands for the electronics workspace in Fusion"
 	},
-	"version":	"0.17.5",
+	"version":	"0.17.6",
 	"runOnStartup":	true,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true,
