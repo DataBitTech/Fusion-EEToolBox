@@ -229,19 +229,12 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
             self.log_error_to_ui(CommandBase.get_error_reason())
 
 
-    def on_command_destroy(self, args: adsk.core.CommandEventArgs):
-        """
-        Event handler for when the command is destroyed.
-
-        See the base class method for full details.
-
-        Args:
-            args: CommandEventArgs
-        """
+    def stop(self) -> None:
+        """Stops the command and performs any necessary cleanup."""
         try:
             if os.path.exists(self._script_export_path):
                 os.remove(self._script_export_path)
         except Exception as e:
             self.log_error_to_ui(f"Error deleting script file: {str(e)}")
         
-        super().on_command_destroy(args)
+        super().stop()

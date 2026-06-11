@@ -47,6 +47,9 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources'))
         super().__init__(command_attributes, edit_user_script_command)
 
+        # for now the query unit is always millimeter
+        self._query_unit = eetbutil.LengthUnits.MILLIMETER
+
         self.default_attribute_mapping = [
             # column to map to attribute    optional?
             ('Rotation fix',             True),
@@ -77,8 +80,9 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         For detailed information see the base class.
         """
         super().on_command_created(args)
-        self.mapping_help.text = 'Fix component origin/rotation mismatch with (potentially fabhouse specific) attributes' 
-
+        self.mapping_help.text = "Fabhouses may define component centroid and null rotation different from the component library. Fix origin and rotation mismatch with component attributes. If an origin fix attribute value does not have a dimension, 'millimeters' is assumed" 
+        self.mapping_help.numRows = 6
+        self.mapping_table.minimumVisibleRows = 3
 
     def get_user_script_input_data(self, filtered_part_data: list[dict], output_format: str) -> list[list[str]]:
         """NOT IMPLEMENTED YET"""
@@ -117,27 +121,47 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         fix_values = self.get_mapped_attribute_values(self.default_attribute_mapping, attributes)
 
         if horizontal_fix_used and fix_values[1]:
-            # Horizontal correction should be applied in the direction of the component's rotation
-            # But since we're correcting the centroid position, we need to account for rotation
-            # The offset should be applied in the component's local coordinate system
-            offset_x = float(fix_values[1]) * math.cos(rot / 180 * math.pi)
-            offset_y = float(fix_values[1]) * math.sin(rot / 180 * math.pi)
-            y += offset_y
-            if top_side:
-                x += offset_x
-            else:
-                x -= offset_x # the board is mirrored, so compensate in the negative direction
+            try:
+                # First convert it to the units of the query
+                (value, unit) = eetbutil.parse_dimension_string(fix_values[1])
+                dx = eetbutil.convert_to_unit((value, unit), self._query_unit)
+
+                # Horizontal correction should be applied in the direction of the component's rotation
+                # But since we're correcting the centroid position, we need to account for rotation
+                # The offset should be applied in the component's local coordinate system
+                offset_x = float(dx) * math.cos(rot / 180 * math.pi)
+                offset_y = float(dx) * math.sin(rot / 180 * math.pi)
+                y += offset_y
+                if top_side:
+                    x += offset_x
+                else:
+                    x -= offset_x # the board is mirrored, so compensate in the negative direction
+            except:
+                attr_name = self.get_selected_attribute(self.default_attribute_mapping[1])
+                self.ui.messageBox(f'{component['name']} has a horizontal fix defined in its "{attr_name}" attribute, but it is not a valid length! It is ignored and no horizontal correction is applied!',
+                                   'Horizontal fix parsing error', adsk.core.MessageBoxButtonTypes.OKButtonType, adsk.core.MessageBoxIconTypes.WarningIconType) # type: ignore
+
 
         if vertical_fix_used and fix_values[2]:
-            # Vertical correction should be applied perpendicular to the component's rotation
-            # In component's local coordinate system, this is 90 degrees from rotation
-            offset_x = float(fix_values[2]) * math.sin(rot / 180 * math.pi)
-            offset_y = float(fix_values[2]) * math.cos(rot / 180 * math.pi)
-            y += offset_y
-            if top_side:
-                x -= offset_x  # Note: minus sign because we're going in the opposite direction
-            else:
-                x += offset_x # the board is mirrored, so compensate in the positive direction
+            try:
+                # First convert it to the units of the query
+                (value, unit) = eetbutil.parse_dimension_string(fix_values[2])
+                dy = eetbutil.convert_to_unit((value, unit), self._query_unit)
+
+                # Vertical correction should be applied perpendicular to the component's rotation
+                # In component's local coordinate system, this is 90 degrees from rotation
+                offset_x = dy * math.sin(rot / 180 * math.pi)
+                offset_y = dy * math.cos(rot / 180 * math.pi)
+                y += offset_y
+                if top_side:
+                    x -= offset_x  # Note: minus sign because we're going in the opposite direction
+                else:
+                    x += offset_x # the board is mirrored, so compensate in the positive direction
+            except:
+                attr_name = self.get_selected_attribute(self.default_attribute_mapping[2])
+                self.ui.messageBox(f'{component['name']} has a vertical fix defined in its "{attr_name}" attribute, but it is not a valid length! It is ignored and no vertical correction is applied!',
+                                   'Vertical fix parsing error', adsk.core.MessageBoxButtonTypes.OKButtonType, adsk.core.MessageBoxIconTypes.WarningIconType) # type: ignore
+
 
         if rotation_fix_used and fix_values[0]:
             rotation_fix = float(fix_values[0])
@@ -149,22 +173,6 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             rot -= 360.0
 
         return (x, y, rot)
-    
-
-    def _convert_mm_to_mil(self, mm: float) -> float:
-        """
-        Convert millimeters to mils (thousandths of an inch).
-
-        Args:
-            mm (float): Value in millimeters
-
-        Returns:
-            float: Value in mils
-        """
-        # 1 inch = 25.4 mm, 1 inch = 1000 mils
-        # So 1 mm = 1000/25.4 mils
-        mils_per_mm = 1000.0 / 25.4
-        return mm * mils_per_mm
 
 
     def _package_is_THT(self, package_name: str) -> bool | None:
@@ -203,7 +211,7 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             package_name (str): The name of the package to search for.
 
         Returns:
-            tuple[float, float]: Width and height of the bounding box in mm, or None if package not found.
+            tuple[float, float]: Width and height of the bounding box in self._query_unit, or None if package not found.
         """
         # Find the package in self.package_data
         package = next((pkg for pkg in self.package_data if pkg.get('name') == package_name), None)
@@ -317,7 +325,12 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             (x, y , rot) = self._apply_corrections(component)
 
             # add to the output
-            cpl_data.append([component['name'], comment, 'Bottom' if component['mirror'] else 'Top', f'{x:.3f}', f'{y:.3f}', f'{rot:.2f}', description])
+            cpl_data.append([component['name'],
+                             comment, 'Bottom' if component['mirror'] else 'Top',
+                             f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}',
+                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}',
+                             f'{rot:.2f}',
+                             description])
         return cpl_data
 
 
@@ -347,7 +360,11 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
                 rot = rot % 360
 
             # add to the output
-            cpl_data.append([component['name'], f'{x:.3f}mm', f'{y:.3f}mm', 'Top' if top_side else 'Bottom', f'{round(rot)}'])
+            cpl_data.append([component['name'], 
+                             f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
+                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
+                             'Top' if top_side else 'Bottom', 
+                             f'{round(rot)}'])
         return cpl_data
 
 
@@ -392,10 +409,13 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
                 populate = mapped_values[0]
                 mpn = mapped_values[1]
             # add to the output
-            cpl_data.append([component['name'], f'{self._convert_mm_to_mil(x):.2f}', f'{self._convert_mm_to_mil(y):.2f}', f'{round(rot)}', 
-                             'T' if top_side else 'B', '' if isTHT == None else '1' if isTHT == False else '2', 
-                             f'{self._convert_mm_to_mil(width):.2f}' if bounding_box is not None else '', 
-                             f'{self._convert_mm_to_mil(height):.2f}' if bounding_box is not None else '', 
+            cpl_data.append([component['name'], f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
+                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
+                             f'{round(rot)}', 
+                             'T' if top_side else 'B', 
+                             '' if isTHT == None else '1' if isTHT == False else '2', 
+                             f'{eetbutil.convert_to_unit((width, self._query_unit), eetbutil.LengthUnits.MIL):.2f}' if bounding_box is not None else '', 
+                             f'{eetbutil.convert_to_unit((height, self._query_unit), eetbutil.LengthUnits.MIL):.2f}' if bounding_box is not None else '', 
                              component['value'], component['package'], populate if populated_used else '1', mpn if mpn_used else ''])
 
         # this format uses a custom file extension, so it is handled here
@@ -458,9 +478,9 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             row = [component['name'], 
                    component['value'], 
                    component['package'], 
-                   f'{component['x']:.3f}', 
-                   f'{component['y']:.3f}',
-                   f'{component['x']:.2f}', 
+                   f'{eetbutil.convert_to_unit((component['x'], self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
+                   f'{eetbutil.convert_to_unit((component['y'], self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm',
+                   f'{component['angle']:.2f}mm', 
                    'Bottom' if component['mirror'] else 'Top']
             for attribute in self.attribute_list:
                 row.append(component.get(attribute, ''))

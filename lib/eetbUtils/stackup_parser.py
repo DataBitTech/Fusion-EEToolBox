@@ -26,6 +26,7 @@
 
 import xml.etree.ElementTree as ET
 import math
+from .length_units import *
 from .microstrip import Microstrip
 
 class StackupParser:
@@ -93,48 +94,6 @@ class StackupParser:
             return {}
 
 
-    @staticmethod
-    def _convert_to_mm(value_str: str) -> float:
-        """Converts a string value with units to millimeters.
-
-        Parses a string value that includes units (mm, in, mil, um) and converts it to millimeters.
-
-        Args:
-            value_str: String containing a numeric value followed by a unit (e.g., "1.5mm", "0.06in").
-
-        Returns:
-            float: The value converted to millimeters.
-
-        Raises:
-            ValueError: If the input string is empty or has an invalid format.
-            ValueError: If the unit is unsupported.
-        """
-        value_str = value_str.strip()
-        if not value_str:
-            raise ValueError("Input string cannot be empty")
-
-        try:
-            if value_str.endswith('mil'):
-                value = float(value_str[:-3])
-                unit = 'mil'
-            else:
-                value = float(value_str[:-2])
-                unit = value_str[-2:]
-        except (ValueError, IndexError):
-            raise ValueError("Invalid input format. Expected a number followed by a unit.")
-
-        if unit == 'mm':
-            return value
-        elif unit == 'in':
-            return value * 25.4
-        elif unit == 'mil':
-            return value * 0.0254
-        elif unit == 'um':
-            return value / 1000.0
-        else:
-            raise ValueError(f"Unsupported unit: {unit}")
-
-
     def get_stackup_attributes(self) -> dict:
         """
         Returns the attributes of the root element.
@@ -163,6 +122,25 @@ class StackupParser:
                     'thickness': mat_attrs.get('thickness')
                 })
         return signal_layers
+
+
+    @staticmethod
+    def _convert_to_mm(value: str) -> float:
+        """
+        Converts a string representation of a length value to millimeters.
+
+        This function takes a string that may contain a numeric value with a unit
+        (e.g., "1.5mm", "0.06in") and converts it to millimeters. It supports
+        various units including mil, inch, mm, cm, and um.
+
+        Args:
+            value (str): The string representation of the length value with optional unit.
+
+        Returns:
+            float: The length value in millimeters.
+        """
+        dimension_tuple = parse_dimension_string(value)
+        return convert_to_unit(dimension_tuple, LengthUnits.MILLIMETER)
 
 
     def _get_first_layer_index(self, signal_layers: list) -> int:

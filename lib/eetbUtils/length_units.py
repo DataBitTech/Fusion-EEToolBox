@@ -2,19 +2,19 @@
 # This software is released under the MIT license:
 #
 # MIT License
-# 
+#
 # Copyright (c) 2025 Pal Szabo
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,91 +24,163 @@
 # SOFTWARE.
 #======================================================
 
-# Define valid length dimensions
-valid_length_units = ['mm', 'um', 'mic', 'cm', 'mil', 'in', 'inch']
+from enum import Enum
+import re
 
-def parse_dimension_string(input_string: str, default_unit = 'mm') -> tuple[float, str]:
+# Define valid length dimensions
+class LengthUnits(Enum):
+    MILLIMETER = 'mm'
+    MICROMETER = 'um'
+    MICRON = 'mic'
+    CENTIMETER = 'cm'
+    MIL = 'mil'
+    IN = 'in'
+    INCH = 'inch'
+
+
+def parse_length_unit(unit_string: str) -> LengthUnits:
     """
-    Robust parser for dimension strings with handling of edge cases.
-    
+    Find the corresponding LengthUnits enum value for a given unit string.
+
+    This function takes a unit string (e.g., 'mm', 'in') and returns the
+    corresponding LengthUnits enum value. It raises a ValueError if the unit
+    string is not recognized.
+
     Args:
-        input_string (str): String to parse
-        
+        unit_string (str): The unit string to find (e.g., 'mm', 'in')
+
     Returns:
-        tuple: (value: float, unit: str)
-        
-    Raises:
-        ValueError: If the conversion failed
+        LengthUnits: The corresponding LengthUnits enum value
     """
-    # Strip leading and trailing whitespace
+    # Remove any whitespace
+    unit_string = unit_string.strip()
+
+    # Find the matching unit in LengthUnits enum
+    for unit in LengthUnits:
+        if unit.value == unit_string:
+            return unit
+
+    # If no matching unit found, raise an error
+    raise ValueError(f"Invalid unit '{unit_string}' in input string")
+
+
+def parse_dimension_string(input_string: str, default_unit: LengthUnits = LengthUnits.MILLIMETER) -> tuple[float, LengthUnits]:
+    """
+    Parse a dimension string and return the value and unit.
+
+    This function takes a string representing a dimension (e.g., '10mm', '5.5in')
+    and returns a tuple containing the numeric value and the corresponding
+    LengthUnits enum value. If no unit is specified, the default_unit is used.
+
+    Args:
+        input_string (str): The dimension string to parse (e.g., '10mm', '5.5in')
+        default_unit (LengthUnits): The unit to use if no unit is specified in
+                                   the input string. Defaults to MILLIMETER.
+
+    Returns:
+        tuple[float, LengthUnits]: A tuple containing (value, unit) where value
+                                   is the numeric dimension and unit is the
+                                   corresponding LengthUnits enum value.
+    """
+    # Remove any whitespace
     input_string = input_string.strip()
-    
+
+    # Check if the input string is empty
     if not input_string:
         raise ValueError("Input string is empty")
+
+    # Use regex to find the numeric part and unit part
+    # This pattern matches: optional sign, digits, optional decimal point, digits, optional exponent
+    # followed by optional whitespace and unit
+    pattern = r'^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(\w*)'
+    match = re.match(pattern, input_string)
     
-    # Try to find a unit at the end of the string
-    unit = None
-    value_str = input_string
+    if not match:
+        raise ValueError("Invalid format in input string")
     
-    # Check for each valid unit at the end of the string
-    for unit_name in valid_length_units:
-        # Check if the string ends with this unit (case insensitive)
-        if input_string.lower().endswith(unit_name.lower()):
-            # Ensure it's a complete match (not part of a larger word)
-            # Find the position where the unit starts
-            unit_start = input_string.lower().rfind(unit_name.lower())
-            # Extract the part before the unit
-            value_str = input_string[:unit_start].rstrip()
-            unit = unit_name
-            break
+    numeric_part = match.group(1)
+    unit_part = match.group(2)
     
-    # If no unit found, treat the entire string as a value
-    if unit is None:
-        value_str = input_string
-        unit = default_unit
-    
-    # Try to convert the value part to float
+    # Convert the numeric part to float
     try:
-        value = float(value_str)
+        value = float(numeric_part)
+    except ValueError:
+        raise ValueError("Invalid numeric part in input string")
+
+    # If no unit part, use the default unit
+    if not unit_part:
+        return (value, default_unit)
+
+    # Find the matching unit in LengthUnits enum
+    try:
+        unit = parse_length_unit(unit_part)
         return (value, unit)
     except ValueError:
-        raise ValueError(f"Cannot convert '{value_str}' to float")
+        raise ValueError(f"Invalid unit '{unit_part}' in input string")
 
 
-def convert_to_unit(dimension_tuple: tuple[float, str], target_unit: str) -> float:
+def is_valid_dimension_string(dimension_string: str, allow_negative: bool = True) -> bool:
     """
-    Converts a dimension tuple (value, unit) to the grid unit of the current
-    Eagle data and returns only the dimensionless number in that unit.
+    Check if a dimension string is valid.
+
+    This function validates a dimension string (e.g., '10mm', '5.5in') to ensure
+    it follows the expected format. It can optionally allow or disallow negative values.
 
     Args:
-        dimension_tuple (tuple): A tuple of (value: float, unit: str)
+        dimension_string (str): The dimension string to validate (e.g., '10mm', '5.5in')
+        allow_negative (bool): Whether negative values are allowed. Defaults to True.
 
     Returns:
-        float: The dimensionless value in the grid unit
+        bool: True if the dimension string is valid, False otherwise.
     """
-    value, unit = dimension_tuple
-    unit = unit.lower().strip()
-    target_unit = target_unit.lower().strip()
-    if target_unit not in valid_length_units:
-        raise ValueError(f"Invalid target unit: {target_unit}")
-    
-    # check if any conversion is needed
-    if unit == target_unit:
+    try:
+        value, _ = parse_dimension_string(dimension_string)
+        if not allow_negative and value < 0:
+            return False
+        return True
+    except ValueError:
+        return False
+
+
+def convert_to_unit(dimension_tuple: tuple[float, LengthUnits], target_unit: LengthUnits) -> float:
+    """
+    Convert a dimension value from its current unit to a target unit.
+
+    This function takes a tuple containing a numeric value and its current
+    LengthUnits enum value, and converts it to the specified target unit.
+    The conversion is done using predefined conversion factors to millimeters.
+
+    Args:
+        dimension_tuple (tuple[float, LengthUnits]): A tuple containing (value, unit)
+                                                     where value is the numeric dimension
+                                                     and unit is the current LengthUnits enum value.
+        target_unit (LengthUnits): The target LengthUnits enum value to convert to.
+
+    Returns:
+        float: The converted value in the target unit.
+    """
+    # Define conversion factors to millimeters
+    conversion_factors = {
+        LengthUnits.MILLIMETER: 1.0,
+        LengthUnits.MICROMETER: 0.001,
+        LengthUnits.MICRON: 0.001,
+        LengthUnits.CENTIMETER: 10.0,
+        LengthUnits.MIL: 0.0254,
+        LengthUnits.IN: 25.4,
+        LengthUnits.INCH: 25.4
+    }
+
+    # Extract value and current unit from the input tuple
+    value, current_unit = dimension_tuple
+
+    # If the current unit is the same as the target unit, return the value as is
+    if current_unit == target_unit:
         return value
 
-    # Conversion factors relative to mm (base unit)
-    conversion_factors = {
-        'mm': 1.0,
-        'um': 0.001,
-        'mic': 0.001,
-        'cm': 10.0,
-        'mil': 0.0254,
-        'in': 25.4,
-        'inch': 25.4
-    }
-    # Get the conversion factor for the input unit
-    input_factor = conversion_factors.get(unit, 1.0)
-    # Get the conversion factor for the grid unit
-    grid_factor = conversion_factors.get(target_unit, 1.0)
-    # Convert to grid unit and return the dimensionless value
-    return value * (input_factor / grid_factor)
+    # Convert the input value to millimeters first
+    value_in_mm = value * conversion_factors[current_unit]
+
+    # Convert from millimeters to the target unit
+    converted_value = value_in_mm / conversion_factors[target_unit]
+
+    return converted_value

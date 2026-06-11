@@ -15,7 +15,7 @@ DEBUG: bool = True
 # Flag that indicates to run in Develop mode or not. When running in Develop mode
 # some additional buttons become available on the UI to aid in the development of
 # headless commands
-DEVELOPER_MODE: bool = True
+DEVELOPER_MODE: bool = False
 
 # Gets the name of the add-in from the name of the folder the py file is in.
 # This is used when defining unique internal names for various UI elements 
