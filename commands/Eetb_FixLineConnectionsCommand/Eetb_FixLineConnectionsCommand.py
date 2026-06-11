@@ -215,6 +215,8 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
                 with open(self._script_export_path, 'w') as f:
                     f.write(f'DISPLAY NONE {layer_number};\n')
                     f.write(f'CHANGE LAYER {layer_number};\n')
+                    f.write(f'GRID 0.1 mm;\n')
+                    
 
                     for (original_wire, moved_wire) in moved_wires:
                         if original_wire['x1'] != moved_wire['x1'] or original_wire['y1'] != moved_wire['y1']:
@@ -222,7 +224,9 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
                         else:
                             f.write(f'DELETE ({original_wire['x2']} {original_wire['y2']});\n')
                         f.write(f'LINE {moved_wire['width']} ({moved_wire['x1']} {moved_wire['y1']}) {moved_wire['curve']:+} ({moved_wire['x2']} {moved_wire['y2']});\n')
-                
+
+                    f.write(f'GRID LAST;\n')
+
                 self.log_to_console(f'Successfully generated script at {self._script_export_path}')
                 self._execute_script_command.run_script(self._script_export_path)
         except:
