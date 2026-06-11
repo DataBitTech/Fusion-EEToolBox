@@ -53,6 +53,13 @@ body.dark-theme .option-icon.selected {
     background-color: #3a5368;
 }
 
+body.dark-theme .option-icon.disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: #7c8ba1 !important;
+    pointer-events: none;
+}
+
 
 /* Light Theme Option Icon Styles */
 body.light-theme .option-icon {
@@ -66,4 +73,17 @@ body.light-theme .option-icon:hover {
 body.light-theme .option-icon.selected {
     border-color: #78c4e6;
     background-color: #ddeef6;
+}
+
+body.light-theme .option-icon.disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: #bbbbbb !important;
+    pointer-events: none;
+}
+
+
+/* Common disabled styles for all themes */
+.option-icon.disabled {
+    pointer-events: none;
 }

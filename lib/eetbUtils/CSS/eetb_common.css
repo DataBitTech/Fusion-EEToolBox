@@ -31,8 +31,12 @@ SOFTWARE.
 
 /* Button Group in the bottom right */
 .button-group {
+    position: fixed; 
+    bottom: 0;
+    right: 0;
     text-align: right;
     margin-top: 10px;
+    margin-bottom: 5px;
 }
 .button-group button {
     margin-left: 8px;

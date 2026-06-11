@@ -47,6 +47,7 @@ from .Eetb_DefineUserScriptAndULPButtonCommand.Eetb_DefineUserScriptAndULPButton
 from .Eetb_ViaFenceCommand.Eetb_ViaFenceCommand import Eetb_ViaFenceCommand
 from .Eetb_ChecklistCommand.Eetb_ChecklistCommand import Eetb_ChecklistCommand
 from .Eetb_AttributeRenameDeleteCommand.Eetb_AttributeRenameDeleteCommand import Eetb_AttributeRenameDeleteCommand
+from .Eetb_AttributeAddCopyCommand.Eetb_AttributeAddCopyCommand import Eetb_AttributeAddCopyCommand
 
 
 # these commands are also input to other command constructors
@@ -71,8 +72,10 @@ commands: list[CommandBase]  = [
     Eetb_ToDoListCommand(),
     Eetb_ChecklistCommand(),
     Eetb_UIStructureWriterCommand(),
-    Eetb_AttributeRenameDeleteCommand(script_execute_command, True),
+    Eetb_AttributeAddCopyCommand(False),
     Eetb_AttributeRenameDeleteCommand(script_execute_command, False),
+    Eetb_AttributeRenameDeleteCommand(script_execute_command, True),
+    Eetb_AttributeAddCopyCommand(True),
     Eetb_AppInfoCommand() # make this the last entry so that its icon is the last one in the toolbar(s)
 ]
 

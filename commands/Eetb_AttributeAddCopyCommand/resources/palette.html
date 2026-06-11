@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Attribute Add/Copy Tool</title>
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_autocomplete.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <script>
+        // Function to split a string by whitespace and commas
+        function splitString(str) {
+            if (!str) return [];
+            return str.split(/[\s,]+/).filter(item => item.length > 0);
+        }
+
+        // Function to capitalize the attributeName input
+        function attributeNameToUpper() {
+            const attrNameInput = document.getElementById("attribute-name");
+            if (attrNameInput) {
+                attrNameInput.value = attrNameInput.value.toUpperCase();
+            }
+        }
+
+        // Validates that the target part input contains valid characters and format
+        function validateTargetPartInput() {
+            // Validate target part for both add and copy variants
+            const targetPartInput = document.getElementById("target-part");
+            targetPartInput.classList.remove('invalid');
+            if (targetPartInput.value.trim() !== "")
+            {
+                const targetPartsArray = splitString(targetPartInput.value);
+                for (const part of targetPartsArray) {
+                    if (!partList.includes(part)) {
+                        targetPartInput.classList.add('invalid');
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Function to enable/disable arrow images based on comparison of arrays
+        function updateArrowButtons() {
+            const targetPartsArray = splitString(document.getElementById("target-part").value);
+            const targetPartsListArray = splitString(document.getElementById("target-parts-list").textContent);
+
+            const arrowDown = document.getElementById("arrow-down");
+            const arrowUp = document.getElementById("arrow-up");
+
+            if (arrowDown && arrowUp) {
+                arrowDown.classList.add('disabled');
+                arrowUp.classList.add('disabled');
+
+                if (!validateTargetPartInput())
+                    return;
+
+                // Check if targetPartsArray has elements not in targetPartsListArray
+                const hasElementsNotInList = targetPartsArray.some(item => !targetPartsListArray.includes(item));
+                if (hasElementsNotInList) 
+                {
+                    arrowDown.classList.remove('disabled');
+                }
+
+                // Check if targetPartsArray has elements that are in targetPartsListArray
+                const hasElementsInList = targetPartsArray.some(item => targetPartsListArray.includes(item));
+                if (hasElementsInList)
+                {
+                    arrowUp.classList.remove('disabled');
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const sourcePart = document.getElementById("source-part");
+            const targetPart = document.getElementById("target-part");
+            const attributeName = document.getElementById("attribute-name");
+            const attributeValue = document.getElementById("attribute-value");
+            
+            const inputs = [
+                sourcePart,
+                targetPart,
+                attributeName,
+                attributeValue,
+                document.getElementById("target-parts-list")
+            ];
+            const autocompleteInputs = [
+                sourcePart,
+                targetPart,
+            ];
+
+            inputs.forEach(input => {
+                if (input) {
+                    input.addEventListener("input", validateInput);
+                }
+            });
+
+            // Attach event listener to capitalize attributeName on input
+            attributeName.addEventListener("input", attributeNameToUpper);
+
+            // update arrow buttons on targetPart input changed
+            targetPart.addEventListener("input", updateArrowButtons);
+
+            // bind the autocomplete logic to the selected inputs
+            eetb_textFields_attachAutoComplete(autocompleteInputs, partList);
+
+            // Initial validation
+            validateInput();
+            updateArrowButtons();
+        });
+
+        // Function to add elements to target-parts-list
+        function addToTargetList() {
+            const elementsToAdd = splitString(document.getElementById("target-part").value);
+            const targetPartsListElement = document.getElementById("target-parts-list");
+            if (!targetPartsListElement) return;
+
+            // Split the current list into an array
+            const currentListArray = splitString(targetPartsListElement.textContent);
+
+            // Add elements that are not already in the list
+            const updatedListArray = [...currentListArray];
+            elementsToAdd.forEach(element => {
+                if (!updatedListArray.includes(element)) {
+                    updatedListArray.push(element);
+                }
+            });
+
+            // Join the array back into a string with comma and space separator
+            targetPartsListElement.textContent = updatedListArray.join(", ");
+
+            // trigger an update of the arrow buttons, because the list is changed
+            updateArrowButtons();
+            // check if OK button needs to be updated
+            validateInput();
+        }
+
+        // Function to remove elements from target-parts-list
+        function removeFromTargetList() {
+            const elementsToRemove = splitString(document.getElementById("target-part").value);
+            const targetPartsListElement = document.getElementById("target-parts-list");
+            if (!targetPartsListElement) return;
+
+            // Split the current list into an array
+            const currentListArray = splitString(targetPartsListElement.textContent);
+
+            // Remove elements that are in the removal list
+            const updatedListArray = currentListArray.filter(element => !elementsToRemove.includes(element));
+
+            // Join the array back into a string with comma and space separator
+            targetPartsListElement.textContent = updatedListArray.join(", ");
+
+            // trigger an update of the arrow buttons, because the list is changed
+            updateArrowButtons();
+            // check if OK button needs to be updated
+            validateInput();
+        }
+
+        function selectCopyType(option, element) {
+            document.getElementById('copy-type-selector').value = option;
+
+            // Update visual selection
+            document.querySelectorAll('.option-icon').forEach(img => {
+                img.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function selectAddType(option, element) {
+            document.getElementById('add-type-selector').value = option;
+
+            // Update visual selection
+            document.querySelectorAll('.option-icon').forEach(img => {
+                img.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function validateInput() {
+            const sourcePartInput = document.getElementById("source-part");
+            const attributeNameInput = document.getElementById("attribute-name");
+            const attributeValueInput = document.getElementById("attribute-value");
+            const targetPartsList = document.getElementById("target-parts-list");
+            const okButton = document.getElementById("ok-button");
+
+            let isValid = true;
+
+            if (window.isCopyOperation)
+            {
+                // Validate source part for copy variant
+                sourcePartInput.classList.remove('invalid');
+                if (sourcePartInput.value.trim() === "") {
+                    isValid = false;
+                    sourcePartInput.classList.add('invalid');
+                } else {
+                    const trimmedSource = sourcePartInput.value.trim();
+                    if (!partList.includes(trimmedSource)) {
+                        isValid = false;
+                        sourcePartInput.classList.add('invalid');
+                    }
+                }
+            } else 
+            {
+                // Validate attribute name for add variant
+                attributeNameInput.classList.remove('invalid');
+                if (attributeNameInput.value.trim() === "") {
+                    isValid = false;
+                    attributeNameInput.classList.add('invalid');
+                } else {
+                    const attrName = attributeNameInput.value.trim();
+                    // Check if first character is not '-'
+                    if (attrName.charAt(0) === '-') {
+                        isValid = false;
+                        attributeNameInput.classList.add('invalid');
+                    }
+                    // Check for whitespaces
+                    if (/\s/.test(attrName)) {
+                        isValid = false;
+                        attributeNameInput.classList.add('invalid');
+                    }
+                    // Check allowed characters (letters, digits, '_', '#', '-')
+                    if (!/^[a-zA-Z0-9_#-]+$/.test(attrName)) {
+                        isValid = false;
+                        attributeNameInput.classList.add('invalid');
+                    }
+                }
+
+                // Validate attribute value for add variant
+                attributeValueInput.classList.remove('invalid');
+                if (attributeValueInput.value.trim() === "") {
+                    isValid = false;
+                    attributeValueInput.classList.add('invalid');
+                }
+            }
+
+            // Validate target parts list
+            if (targetPartsList.textContent.trim() === "") {
+                isValid = false;
+            }
+
+            // Enable or disable OK button
+            okButton.disabled = !isValid;
+        }
+
+        function onOkButton() {
+            if (window.isCopyOperation) {
+                const sourcePart = document.getElementById("source-part").value;
+                const targetPartList = splitString(document.getElementById("target-parts-list").textContent);
+                const copyType = document.getElementById("copy-type-selector").value;
+
+                const jsonData = JSON.stringify({
+                        'source_part': sourcePart,
+                        'target_parts': targetPartList,
+                        'copy_type': copyType
+                });
+                adsk.fusionSendData('okButtonClicked', jsonData);
+            } else {
+                const attributeName = document.getElementById("attribute-name").value;
+                const attributeValue = document.getElementById("attribute-value").value;
+                const targetPartsList = splitString(document.getElementById("target-parts-list").textContent);
+                const addType = document.getElementById("add-type-selector").value;
+
+                const jsonData = JSON.stringify({
+                    'attribute_name': attributeName,
+                    'attribute_value': attributeValue,
+                    'target_parts': targetPartsList,
+                    'overwrite_existing': addType == 'overwrite'
+                });
+                adsk.fusionSendData('okButtonClicked', jsonData);
+            }
+        }
+
+        // FUSION 360 HANDLER
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action === 'setFormParams') {
+                        const payload = JSON.parse(data);
+                        window.isLayoutDocument = payload.isLayoutDocument;
+                        if (payload.isCopyOperation) {
+                            window.isCopyOperation = true;
+                            document.getElementById('add-table').style.display = 'none';
+                            document.getElementById('add-table').disabled = true;
+                            document.getElementById('copy-table').style.display = 'table';
+                            document.getElementById('copy-table').disabled = false;
+                            document.getElementById('warningMessageCopy').style.display = payload.isLayoutDocument ? 'block' : 'none';
+                            document.getElementById('warningMessageAdd').style.display = 'none';
+                            selectCopyType('overwrite-and-delete', document.getElementById('overwrite-and-delete'));
+                        } else {
+                            window.isCopyOperation = false;
+                            document.getElementById('add-table').style.display = 'table';
+                            document.getElementById('add-table').disabled = false;
+                            document.getElementById('copy-table').style.display = 'none';
+                            document.getElementById('copy-table').disabled = true;
+                            document.getElementById('warningMessageAdd').style.display = payload.isLayoutDocument ? 'block' : 'none';
+                            document.getElementById('warningMessageCopy').style.display = 'none';
+                            selectAddType('overwrite', document.getElementById('add-overwrite'));
+                        }
+
+                        // trigger an input validation because the copy operation variable is updated
+                        validateInput();
+                    } else if (action == 'setEagleData') {
+                        eetb_EagleData_processJson(data);
+
+                        // Fill input fields if partSelection has elements
+                        if (window.isCopyOperation) {
+                            if (partSelection.length > 1) {
+                                document.getElementById("target-part").value = partSelection.join(", ");
+                                updateArrowButtons();
+                            } else if (partSelection.length > 0) {
+                                document.getElementById("source-part").value = partSelection[0];
+                            }
+                        } else {
+                            if (partSelection.length > 0) {
+                                document.getElementById("target-part").value = partSelection.join(", ");
+                                updateArrowButtons();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error in fusionJavaScriptHandler:", e);
+                }
+                return "OK";
+            }
+        };
+        function displayError(error_string)
+        {
+            const errorDiv = document.getElementById('errorDisplay');
+            if (errorDiv) {
+                errorDiv.textContent = error_string;
+                errorDiv.style.display = 'block'; // Make sure it's visible
+            }
+        }
+    </script>
+</head>
+<body>
+<form onsubmit="return false;">
+    <table class="form-layout" name="copy-table" id="copy-table" style="display:none;">
+        <tbody>
+            <tr>
+                <td><label for="source-part">Source Part</label></td>
+                <td><input type="text" id="source-part" name="source-part" /></td>
+            </tr>
+            <tr>
+                <td><label>Target attributes</label></td>
+                <td>
+                    <div class="option-icon-group">
+                        <img src="copy/overwrite_and_delete.png" id="overwrite-and-delete" class="option-icon" alt="Overwrite and delete" title="Identical to source attributes: add new attributes, delete target-only attributes, overwrite existing attributes" onclick="selectCopyType('overwrite-and-delete', this)">
+                        <img src="copy/overwrite_and_keep.png" id="overwrite-and-keep" class="option-icon" alt="Overwrite and keep" title="Add new and overwrite existing: add new attributes, keep target-only attributes, overwrite existing attributes" onclick="selectCopyType('overwrite-and-keep', this)">
+                        <img src="copy/only_add_new.png" id="only-add-new" class="option-icon" alt="Only add new" title="Only add new attributes: keep all target attributes, add new attributes" onclick="selectCopyType('only-add-new', this)">
+                    </div>
+                    <input type="hidden" id="copy-type-selector" value="overwrite-and-delete">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="form-layout" name="add-table" id="add-table" style="display:none;">
+        <tbody>
+            <tr>
+                <td><label for="attribute-name">Attribute name</label></td>
+                <td><input type="text" id="attribute-name" name="attribute-name" /></td>
+            </tr>
+            <tr>
+                <td><label for="attribute-value">Attribute value</label></td>
+                <td><input type="text" id="attribute-value" name="attribute-value" /></td>
+            </tr>
+            <tr>
+                <td><label>If attribute exists</label></td>
+                <td>
+                    <div class="option-icon-group">
+                        <img src="add/overwrite.png" id="add-overwrite" class="option-icon" alt="Overwrite" title="Overwrite with the new value if the attribute is already defined" onclick="selectAddType('overwrite', this)">
+                        <img src="add/keep.png" id="dont-add-keep" class="option-icon" alt="Keep" title="Keep the current value if the attribute is already defined" onclick="selectAddType('keep', this)">
+                    </div>
+                    <input type="hidden" id="add-type-selector" value="overwrite">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="form-layout">
+        <tbody>
+            <tr>
+                <td><label for="target-part">Add target part</label></td>
+                <td><input type="text" id="target-part" name="target=part"/></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>
+                    <div class="option-icon-group">
+                        <img src="arrow_down.png" id="arrow-down" class="option-icon" alt="Add to list" title="Add to target part list" onclick="addToTargetList()">
+                        <img src="arrow_up.png" id="arrow-up" class="option-icon" alt="Remove from list" title="Remove from target part list" onclick="removeFromTargetList()">
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="target-parts-list">Target partslist</label></td>
+                <td><span id="target-parts-list" name="target-parts-list" readonly></span></td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="warningMessageAdd" name="warningMessageAdd" style="margin-top: 20px; margin-bottom: 20px; display: none;">
+        <b>WARNING</b><br>Adding attributes in layout context will make it visible only in this context, as opposed to adding it in the schematic context.
+        <br>For more information see the <a href="https://help.autodesk.com/view/fusion360/ENU/?guid=ECD-CLI-A#attribute">Autodesk Fusion help</a>
+    </div>
+    <div id="warningMessageCopy" name="warningMessageCopy" style="margin-top: 20px; margin-bottom: 20px; display: none;">
+        <b>WARNING</b><br>Copying attributes in layout context will possibly have different visibility than for the source part.
+        <br>For more information see the <a href="https://help.autodesk.com/view/fusion360/ENU/?guid=ECD-CLI-A#attribute">Autodesk Fusion help</a>
+    </div>
+    <div id="errorDisplay" class="error-message"></div> <!-- New error display div -->
+    <div class="button-group">
+        <button type="button" id="ok-button" name="ok-button" onclick="onOkButton()" class="secondary">OK</button>
+        <button type="button" onclick="eetb_onCancelButton()" class="secondary">Cancel</button>
+    </div>
+</form>
+</body>
+</html>
