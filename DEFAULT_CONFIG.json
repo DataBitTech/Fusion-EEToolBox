@@ -47,6 +47,9 @@
                     "path": "find.ulp"
                 }
             ]
+        },
+        "add-in": {
+            "checkUpdateOnStartup": true
         }
     }
 }
