@@ -29,18 +29,41 @@ SOFTWARE.
     justify-content: left;
     align-items: left;
 }
+
 .option-icon {
     cursor: pointer;
-    border: 1px solid #7c8ba1;
     border-radius: 4px;
     padding: 5px;
     height: 20px;
     margin-right: 6px;
 }
-.option-icon:hover {
+
+
+/* Dark Theme Option Icon Styles */
+body.dark-theme .option-icon {
+    border: 1px solid #7c8ba1;
+}
+
+body.dark-theme .option-icon:hover {
     border-color: #4e596a;
 }
-.option-icon.selected {
+
+body.dark-theme .option-icon.selected {
     border-color: #3a7b9e;
     background-color: #3a5368;
+}
+
+
+/* Light Theme Option Icon Styles */
+body.light-theme .option-icon {
+    border: 1px solid #bbbbbb;
+}
+
+body.light-theme .option-icon:hover {
+    border-color: #e3e3e3;
+}
+
+body.light-theme .option-icon.selected {
+    border-color: #78c4e6;
+    background-color: #ddeef6;
 }

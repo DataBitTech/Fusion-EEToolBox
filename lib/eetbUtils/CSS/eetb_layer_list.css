@@ -62,12 +62,13 @@ body.dark-theme .layer-item.selected {
     background-color: #435d74;
 }
 
+
 /* Light Theme Layer List Styles */
 body.light-theme .layer-item:hover {
-    background-color: #f0f0f0;
+    background-color: #F0F0F0;
 }
 
 body.light-theme .layer-item.selected {
-    background-color: var(--selection-color, #0d6efd);
-    color: var(--selected-text-color, white);
+    background-color: #D6EAF8;
+    color: #333333;
 }

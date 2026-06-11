@@ -36,7 +36,7 @@ SOFTWARE.
 }
 
 .autocomplete-entry {
-    padding: 10px 8px;           
+    padding: 2px 8px;
     cursor: pointer;
     color: #000;                
     font-size: 1.1em;            
@@ -70,3 +70,25 @@ body.dark-theme .autocomplete-entry.active:hover {
     background-color: #007ACC;
     color: #FFFFFF;
 }
+
+
+ /* Light theme explicit overrides */
+ body.light-theme .autocomplete-dropdown {
+     background-color: #FFFFFF;
+     border: 1px solid #D1D1D1;
+ }
+
+ body.light-theme .autocomplete-entry {
+     color: #333333;
+     background-color: #FFFFFF;
+ }
+
+ body.light-theme .autocomplete-entry:hover {
+     background-color: #F0F0F0;
+ }
+
+ body.light-theme .autocomplete-entry.active,
+ body.light-theme .autocomplete-entry.active:hover {
+     background-color: #D6EAF8;
+     color: #333333;
+ }
