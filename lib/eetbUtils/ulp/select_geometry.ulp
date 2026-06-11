@@ -1,0 +1,452 @@
+//======================================================
+// select_geometry.ulp
+//
+// Eagle v6.5 or later is required
+//
+// Select geometry on the layout provided on the command line
+// 
+// This software is released under the MIT license:
+//
+// MIT License
+// 
+// Copyright (c) 2026 Pal Szabo
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//======================================================
+
+
+#usage "en: Select geometry on the layout\n"
+       "Usage: RUN select_geometry.ulp -u um|mm|mil|in|inch [-w layer x1 y1 x2 y2] [-c layer x y r] [-t layer x y] [-r layer x1 y1 x2 y2] [-v l1 l2 x y] [-h x y]"
+
+
+enum { false, true };
+enum {
+       UNIT_UM, 
+       UNIT_MM, 
+       UNIT_MIL, 
+       UNIT_INCH, 
+       UNIT_IN,
+       NUM_UNITS
+    };
+
+string UNIT_STRINGS[] = {
+       "um",
+       "mm",
+       "mil", 
+       "inch", 
+       "in" 
+};
+
+int input_unit = UNIT_MM;
+
+int is_single_layer = true;
+int single_layer_idx = -1;
+int has_routing_wires = false;
+
+// wires to select
+int num_wires = 0;
+int wires_layer[];
+real wires_x1[];
+real wires_x2[];
+real wires_y1[];
+real wires_y2[];
+
+// circles to select
+int num_circles = 0;
+int circles_layer[];
+real circles_x[];
+real circles_y[];
+real circles_r[];
+
+// texts to select
+int num_texts = 0;
+int texts_layer[];
+real texts_x[];
+real texts_y[];
+
+// rectangles to select
+int num_rects = 0;
+int rects_layer[];
+real rects_x1[];
+real rects_x2[];
+real rects_y1[];
+real rects_y2[];
+
+// vias to select
+int num_vias = 0;
+int vias_layer_from[];
+int vias_layer_to[];
+real vias_x[];
+real vias_y[];
+
+// holes to select
+int num_holes = 0;
+real holes_x[];
+real holes_y[];
+
+
+int parse_int(string int_str)
+{
+    int result = strtol(int_str);
+    if (result == 0 && int_str != "0")
+    {
+       printf("Error: Invalid integer value: %s\n", int_str);
+       exit(-1);
+    }
+    return result;
+}
+
+
+real parse_real(string real_str)
+{
+    real result = strtod(real_str);
+    if (result == 0.0 && real_str != "0.0")
+    {
+       printf("Error: Invalid real value: %s\n", real_str);
+       exit(-1);
+    }
+    return result;
+}
+
+
+void parse_args() 
+{
+    int i = 1;
+    string opt = "";
+    int last_layer = -1;
+    int unit_provided = false;
+    
+    while (i < argc) 
+    {  
+        if (argv[i][0] != '-')
+          exit(1);
+            
+        opt = strlwr(argv[i]);
+
+        // -u unit
+        if (i == 1 && opt == "-u")
+        {
+            if (argc < i + 2) exit(2);
+            for (int j = 0; j < NUM_UNITS; j++)
+            {
+                if (UNIT_STRINGS[j] == argv[i+1])
+                {
+                    input_unit = j;
+                    unit_provided = true;
+                    break;
+                }
+            }
+            if (!unit_provided)
+            {
+                printf("Error: Invalid unit: %s\n", argv[i+1]);
+                exit(-2);
+            }
+            i++;
+        } else if (!unit_provided)
+        {
+            printf("No unit specified. Use -u um|mm|mil|in|inch\n");
+            exit(-3);
+        }
+
+        // -w layer x1 y1 x2 y2
+        else if (opt == "-w")
+        {
+            if (argc < i + 6) exit(2);
+            wires_layer[num_wires] = parse_int(argv[++i]);
+            wires_x1[num_wires]    = parse_real(argv[++i]);
+            wires_y1[num_wires]    = parse_real(argv[++i]);
+            wires_x2[num_wires]    = parse_real(argv[++i]);
+            wires_y2[num_wires]    = parse_real(argv[++i]);
+            
+            // keep track of single layer selections (most common)
+            if (last_layer > 0 && wires_layer[num_wires] != last_layer)
+                is_single_layer = false;
+            last_layer = wires_layer[num_wires];  // remember last layer
+
+            // keep track if there are wires on the routing layers
+            if (wires_layer[num_wires] <= 16 || wires_layer[num_wires] >= 256)
+                has_routing_wires = true;
+            ++num_wires; // count wires
+        }
+        
+        // -c layer x y r
+        else if (opt == "-c")
+        {
+            if (argc < i + 5) exit(2);
+            circles_layer[num_circles] = parse_int(argv[++i]);
+            circles_x[num_circles]    = parse_real(argv[++i]);
+            circles_y[num_circles]    = parse_real(argv[++i]);
+            circles_r[num_circles]    = parse_real(argv[++i]);
+
+            // keep track of single layer selections (most common)
+            if (last_layer > 0 && circles_layer[num_wires] != last_layer)
+              is_single_layer = false;
+            last_layer = circles_layer[num_wires];  // remember last layer
+            ++num_circles; // count circles
+        }
+
+        // -t layer x y
+        else if (opt == "-t")
+        {
+            if (argc < i + 4) exit(2);
+            texts_layer[num_texts] = parse_int(argv[++i]);
+            texts_x[num_texts]    = parse_real(argv[++i]);
+            texts_y[num_texts]    = parse_real(argv[++i]);
+       
+            // keep track of single layer selections (most common)
+            if (last_layer > 0 && texts_layer[num_wires] != last_layer)
+              is_single_layer = false;
+            last_layer = texts_layer[num_wires];  // remember last layer
+            ++num_texts; // count texts
+        }
+
+        // -r layer x1 y1 x2 y2
+        else if (opt == "-r")
+        {
+            if (argc < i + 5) exit(2);
+            rects_layer[num_rects] = parse_int(argv[++i]);
+            rects_x1[num_rects]    = parse_real(argv[++i]);
+            rects_y1[num_rects]    = parse_real(argv[++i]);
+            rects_x2[num_rects]    = parse_real(argv[++i]);
+            rects_y2[num_rects]    = parse_real(argv[++i]);
+
+            // keep track of single layer selections (most common)
+            if (last_layer > 0 && rects_layer[num_rects] != last_layer)
+              is_single_layer = false;
+            last_layer = rects_layer[num_rects];  // remember last layer
+            ++num_rects; // count rectangles
+        }
+
+        // -v l1 l2 x y
+        else if (opt == "-v")
+        {
+            if (argc < i + 4) exit(2);
+            
+            vias_layer_from[num_vias]   = parse_int(argv[++i]);
+            vias_layer_to[num_vias]     = parse_int(argv[++i]);
+            vias_x[num_vias]            = parse_real(argv[++i]);
+            vias_y[num_vias]            = parse_real(argv[++i]);
+            ++num_vias; // count vias
+        }
+
+        // -h x y
+        else if (opt == "-h")
+        {
+              if (argc < i + 2) exit(2);
+              holes_x[num_holes] = parse_real(argv[++i]);
+              holes_y[num_holes] = parse_real(argv[++i]);
+              ++num_holes; // count holes
+        }
+        
+        else
+        {
+            printf("Unknown argument '%s'", opt);
+            exit(-2);
+        }
+
+        ++i;
+    }
+
+    if (is_single_layer)
+       single_layer_idx = last_layer;
+}
+
+
+int match_dimension(int Eagle_dim, real dim)
+{
+    switch(input_unit)
+    {
+       case UNIT_UM:
+           return u2mic(Eagle_dim) == dim;
+           break;
+       case UNIT_MM:
+           return u2mm(Eagle_dim) == dim;
+           break;
+       case UNIT_MIL:
+           return u2mil(Eagle_dim) == dim;
+           break;
+       case UNIT_IN:
+       case UNIT_INCH:
+           return u2inch(Eagle_dim) == dim;
+           break;
+       default:
+           printf("Unknown input unit %d\n", input_unit);
+           exit(-5);
+           break;
+    }
+}
+
+
+int match_coordinates(int Eagle_x, int Eagle_y, real x, real y)
+{
+    return match_dimension(Eagle_x, x) && match_dimension(Eagle_y, y);
+}
+
+
+int match_coordinate_pair(int Eagle_x1, int Eagle_y1, int Eagle_x2, int Eagle_y2, real x1, real y1, real x2, real y2)
+{
+    return (match_coordinates(Eagle_x1, Eagle_y1, x1, y1) && match_coordinates(Eagle_x2, Eagle_y2, x2, y2)) ||
+           (match_coordinates(Eagle_x1, Eagle_y1, x2, y2) && match_coordinates(Eagle_x2, Eagle_y2, x1, y1));
+}
+
+
+int match_circle(UL_CIRCLE C)
+{
+    if (is_single_layer && C.layer != single_layer_idx)
+       return false;
+    
+    for (int i = 0; i < num_circles; i++)
+    {
+        if (C.layer == circles_layer[i] && 
+            match_coordinates(C.x, C.y, circles_x[i], circles_y[i]) && 
+            match_dimension(C.radius, circles_r[i]))
+            return true;
+    }
+    return false;
+}
+
+
+int match_hole(UL_HOLE H)
+{
+    for (int i = 0; i < num_holes; i++)
+    {
+        if (match_coordinates(H.x, H.y, holes_x[i], holes_y[i]))
+            return true;
+    }
+    return false;
+}
+
+
+int match_rect(UL_RECTANGLE R)
+{
+    if (is_single_layer && R.layer != single_layer_idx)
+       return false;
+
+    for (int i = 0; i < num_rects; i++)
+    {
+        if (R.layer == rects_layer[i] && 
+            match_coordinate_pair(R.x1, R.y1, R.x2, R.y2, rects_x1[i], rects_y1[i], rects_x2[i], rects_y2[i]))
+            return true;
+    }
+    return false;
+}
+
+
+int match_text(UL_TEXT T)
+{
+    if (is_single_layer && T.layer != single_layer_idx)
+       return false;
+
+    for (int i = 0; i < num_texts; i++)
+    {
+        if (T.layer == texts_layer[i] && match_coordinates(T.x, T.y, texts_x[i], texts_y[i]))
+            return true;
+    }
+    return false;
+}
+
+
+int match_wire(UL_WIRE W)
+{
+    if (is_single_layer && W.layer != single_layer_idx)
+       return false;
+
+    for (int i = 0; i < num_wires; i++)
+    {
+        if (W.layer == wires_layer[i] && 
+            match_coordinate_pair(W.x1, W.y1, W.x2, W.y2, wires_x1[i], wires_y1[i], wires_x2[i], wires_y2[i]))
+            return true;
+    }
+    return false;
+}
+
+
+int match_via(UL_VIA V)
+{
+    for (int i = 0; i < num_vias; i++)
+    {
+        if (V.start == vias_layer_from[i] && 
+            V.end == vias_layer_to[i] &&
+            match_coordinates(V.x, V.y, vias_x[i], vias_y[i]))
+            return true;
+    }
+    return false;
+}
+
+
+/****************/
+/* MAIN PROGRAM */
+/****************/
+parse_args();
+if (!board)
+{
+    printf("This ULP must be run in board context!\n");
+    exit(-2);
+}
+
+board(B)
+{
+    clrgroup(B);
+    if (num_circles) B.circles(C)
+    {
+        if (match_circle(C))
+            setgroup(C);
+    }
+
+    if (num_holes) B.holes(H)
+    {
+        if (match_hole(H))
+            setgroup(H);
+    }
+
+    if (num_rects) B.rectangles(R)
+    {
+        if (match_rect(R))
+            setgroup(R);
+    }
+
+    if (num_texts) B.texts(T)
+    {
+        if (match_text(T))
+            setgroup(T);
+    }
+
+    if (num_wires) B.wires(W)
+    {
+        if (match_wire(W))
+            setgroup(W);
+    }
+
+    if (num_vias || (num_wires && has_routing_wires)) B.signals(S)
+    {
+        if (num_vias) S.vias(V)
+        {
+            if (match_via(V))
+                setgroup(V);
+        }
+
+        if (num_wires && has_routing_wires) S.wires(W)
+        {
+            if (match_wire(W))
+                setgroup(W);
+        }
+    }
+}
+
+exit("GROUP");

@@ -36,6 +36,9 @@ from ..CommandBase import CommandBase
 from ..Eetb_ExecuteEagleScriptCommand.Eetb_ExecuteEagleScriptCommand import Eetb_ExecuteEagleScriptCommand
 from ...lib import fusionAddInUtils as futil
 from ...lib import eetbUtils as eetbutil
+from ...lib import treelib
+
+SELECT_GEOMETRY_ULP: str = os.path.join(config.ULP_DIR, 'select_geometry.ulp')
 
 class Eetb_FixLineConnectionsCommand(CommandBase):
 
@@ -98,6 +101,7 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
                 layers_to_query.append(layer_num)
         geo_data = self.get_geometry_data(layers_to_query)
         self._layer_geometry = geo_data.get('geometry_data', {})
+        self._grid_unit = eetbutil.parse_length_unit(geo_data.get('unit', 'mm'))
 
         if self._layer_selection_input.listItems.count:
             self._layer_selection_input.listItems[0].isSelected = True            
@@ -124,9 +128,32 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
             # Set command properties
             cmd.isRepeatable = False
             cmd.isExecutedWhenPreEmpted = False
+
+            self.local_handlers.append(futil.add_handler(cmd.validateInputs, self.on_validate_inputs))
             
         except Exception as e:
             self.log_error_to_ui(f"Error creating command: {self.get_error_reason()}")
+
+
+    def on_validate_inputs(self, eventArgs: adsk.core.ValidateInputsEventArgs):
+        """Validates the inputs for the command.
+
+        This method is called whenever the command's inputs are changed or validated.
+        It performs validation checks on the command's UI elements to ensure that
+        all required fields are properly filled and that the values are acceptable
+        for the export operation. It updates the UI state and disables the OK button
+        if validation fails.
+
+        Args:
+            eventArgs: ValidateInputsEventArgs containing the validation event arguments
+
+        Returns:
+            None: This method does not return a value.
+        """
+        if not isinstance(eventArgs.firingEvent.sender, adsk.core.Command):
+            raise TypeError("Event sender is not a Command object")
+
+        eventArgs.areInputsValid = self._epsilon_value_input.isValid   # False disables OK button
 
 
     def on_command_execute(self, args: adsk.core.CommandEventArgs):
@@ -138,12 +165,8 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
         Args:
             args: CommandEventArgs
         """
-        if not self._epsilon_value_input.isValid:
-            self.log_error_to_ui('Please set a valid effect radius')
-            return
-        
         try:  
-            epsilon_mm = float(self._epsilon_value_input.value)  * 10
+            epsilon = eetbutil.convert_to_unit((self._epsilon_value_input.value, eetbutil.LengthUnits.CENTIMETER), self._grid_unit)
             layer_number = int(self._layer_selection_input.selectedItem.name.split(' ')[0])
 
             wires_on_layer = []
@@ -155,78 +178,14 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
                 self.log_to_console(f'No wires found on the selected layer.')
                 return
 
-            checked_wires = []
-            moved_wires: list[tuple] = []
-            for wire in wires_on_layer:
-                
-                for checked_wire in checked_wires:
-                    if  (checked_wire['x1'] == wire['x1'] and checked_wire['y1'] == wire['y1']) or \
-                        (checked_wire['x2'] == wire['x2'] and checked_wire['y2'] == wire['y2']) or \
-                        (checked_wire['x1'] == wire['x2'] and checked_wire['y1'] == wire['y2']) or \
-                        (checked_wire['x2'] == wire['x1'] and checked_wire['y2'] == wire['y1']):
-                        continue
-                        
-                    checked_p1 = (checked_wire['x1'], checked_wire['y1'])
-                    checked_p2 = (checked_wire['x2'], checked_wire['y2'])
-                    wire_p1 = (wire['x1'], wire['y1'])
-                    wire_p2 = (wire['x2'], wire['y2'])
+            # collect them into trees of connected wires
+            wire_trees = eetbutil.build_wire_trees(wires_on_layer)
 
-                    if math.dist(checked_p1, wire_p1) < epsilon_mm:
-                        moved_wire = deepcopy(wire)
-                        moved_wire['x1'] = checked_wire['x1']
-                        moved_wire['y1'] = checked_wire['y1']
-                        moved_wires.append((wire, moved_wire))
-                    elif math.dist(checked_p2, wire_p1) < epsilon_mm:
-                        moved_wire = deepcopy(wire)
-                        moved_wire['x1'] = checked_wire['x2']
-                        moved_wire['y1'] = checked_wire['y2']
-                        moved_wires.append((wire, moved_wire))
-                    elif math.dist(checked_p1, wire_p2) < epsilon_mm:
-                        moved_wire = deepcopy(wire)
-                        moved_wire['x2'] = checked_wire['x1']
-                        moved_wire['y2'] = checked_wire['y1']
-                        moved_wires.append((wire, moved_wire))
-                    elif math.dist(checked_p2, wire_p2)  < epsilon_mm:
-                        moved_wire = deepcopy(wire)
-                        moved_wire['x2'] = checked_wire['x2']
-                        moved_wire['y2'] = checked_wire['y2']
-                        moved_wires.append((wire, moved_wire))
-                
-                checked_wires.append(wire)
+            # identify the wires to be moved
+            wires_to_move = self._find_close_wire_endpoints(wire_trees, epsilon)
             
-            if moved_wires:
-                # # Group copied wires into contiguous lines
-                # contiguous_lines: list[list[dict]] = []
-                # for wire in copied_wires:
-                #     added_to_line = False
-                #     for line_segments in contiguous_lines:
-                #         if wire['x1'] == line_segments[-1]['x2'] and wire['y1'] == line_segments[-1]['y2']:
-                #             line_segments.append(wire)
-                #             added_to_line = True
-                #             break
-                #         elif wire['x2'] == line_segments[0]['x1'] and wire['y2'] == line_segments[0]['y1']:
-                #             line_segments.insert(0, wire)
-                #             added_to_line = True
-                #             break
-                #     if not added_to_line:
-                #         contiguous_lines.append([wire])
-
-                # first remove all on this layer - the easiest way is to redraw the entire layer
-                with open(self._script_export_path, 'w') as f:
-                    f.write(f'DISPLAY NONE {layer_number};\n')
-                    f.write(f'CHANGE LAYER {layer_number};\n')
-                    f.write(f'GRID 0.1 mm;\n')
-                    
-
-                    for (original_wire, moved_wire) in moved_wires:
-                        if original_wire['x1'] != moved_wire['x1'] or original_wire['y1'] != moved_wire['y1']:
-                            f.write(f'DELETE ({original_wire['x1']} {original_wire['y1']});\n')
-                        else:
-                            f.write(f'DELETE ({original_wire['x2']} {original_wire['y2']});\n')
-                        f.write(f'LINE {moved_wire['width']} ({moved_wire['x1']} {moved_wire['y1']}) {moved_wire['curve']:+} ({moved_wire['x2']} {moved_wire['y2']});\n')
-
-                    f.write(f'GRID LAST;\n')
-
+            if wires_to_move:
+                self._write_move_script(wires_to_move)
                 self.log_to_console(f'Successfully generated script at {self._script_export_path}')
                 self._execute_script_command.run_script(self._script_export_path)
         except:
@@ -242,3 +201,158 @@ class Eetb_FixLineConnectionsCommand(CommandBase):
             self.log_error_to_ui(f"Error deleting script file: {str(e)}")
         
         super().stop()
+
+
+    def _find_close_wire_endpoints(self, wire_trees: list[treelib.Tree], epsilon: float) -> list[dict]:
+        """
+        Find and fix connections between wires from different trees.
+        
+        This function identifies potential connections between leaves of different wire trees
+        and returns a list of (original_wire, moved_wire) tuples for fixing.
+        
+        Args:
+            wire_trees (list): List of treelib.Tree objects representing connected wire components
+            epsilon (float): The epsilon value for connection detection, must be the same unit as the exported data
+            
+        Returns:
+            list[tuple]: List of wires to be moved
+        """
+        moved_wires_list = []
+
+        # Process each tree
+        for tree in wire_trees:
+            if not tree:
+                continue
+                
+            # Process each node in the tree
+            for node in tree.all_nodes():
+                # Only check leaf nodes and the root node
+                if not node.is_leaf() and not node.is_root():
+                    continue
+                
+                # get the endpoints that could be moved at all
+                free_endpoints = self._get_unconnected_endpoints(tree, node)             
+                wire = node.data
+
+                # If no endpoints can be moved, skip to the next leaf
+                if not free_endpoints:
+                    continue
+
+                # Check against all other endpoints in all trees
+                for other_tree in wire_trees:
+                    for other_node in other_tree.all_nodes():
+                        other_wire = other_node.data
+                        if other_wire == wire:
+                            continue
+                        
+                        # now check closeness of the endpoints
+                        (wire_close_endpoint, other_wire_close_endpoint) = eetbutil.are_wire_endpoints_near(wire, other_wire, epsilon)
+                        
+                        if wire_close_endpoint in free_endpoints and wire.get(f'x{wire_close_endpoint}_moved') is None:
+                            # Check if the other wire has been moved already
+                            if other_wire.get(f'x{other_wire_close_endpoint}_moved') is not None:
+                                # If it has, we check if it is moved to our coordinate
+                                if other_wire[f'x{other_wire_close_endpoint}_moved'] != wire[f'x{wire_close_endpoint}'] or \
+                                   other_wire[f'y{other_wire_close_endpoint}_moved'] != wire[f'y{wire_close_endpoint}']:
+                                    # note the new coordinates
+                                    wire[f'x{wire_close_endpoint}_moved'] = other_wire[f'x{other_wire_close_endpoint}_moved']
+                                    wire[f'y{wire_close_endpoint}_moved'] = other_wire[f'y{other_wire_close_endpoint}_moved']
+                                    break
+                                else:
+                                    continue
+                            else:
+                                # note the new coordinates
+                                wire[f'x{wire_close_endpoint}_moved'] = other_wire[f'x{other_wire_close_endpoint}']
+                                wire[f'y{wire_close_endpoint}_moved'] = other_wire[f'y{other_wire_close_endpoint}']
+                                break
+                if wire.get('x1_moved') is not None or wire.get('x2_moved') is not None:
+                    # Add the wire to the list of wires that need to be moved
+                    moved_wires_list.append(wire)
+        return moved_wires_list
+    
+
+    def _get_unconnected_endpoints(self, tree: treelib.Tree, node: treelib.Node) -> list[str]:
+        """
+        Determine which endpoints of a wire node are unconnected to other wires in the tree.
+
+        This function checks the endpoints of a given node in a wire tree and identifies
+        which ones are not connected to any other wire in the same tree. These endpoints
+        are considered "unconnected" and may be candidates for adjustment or connection.
+
+        Args:
+            tree (treelib.Tree): The tree containing the node
+            node (treelib.Node): The node whose endpoints are to be checked
+
+        Returns:
+            list[str]: A list of endpoint identifiers ('x1y1' or 'x2y2') that are unconnected
+        """
+        wire = node.data
+        unconnected_endpoints = []
+        p1_connected = False
+        p2_connected = False
+
+        # Get the two endpoints of this leaf wire
+        p1 = (wire['x1'], wire['y1'])
+        p2 = (wire['x2'], wire['y2'])
+        
+        # Check parent
+        parent = tree.parent(node.identifier)
+        if parent:
+            parent_wire = parent.data
+            (leaf_coincident_endpoint, parent_coincident_endpoint) = eetbutil.are_wires_connecting(wire, parent_wire)
+            if leaf_coincident_endpoint == 1:
+                p1_connected = True
+            if leaf_coincident_endpoint == 2:
+                p2_connected = True
+        # Check children
+        children = tree.children(node.identifier)
+        for child in children:
+            child_wire = child.data
+            (leaf_coincident_endpoint, child_coincident_endpoint) = eetbutil.are_wires_connecting(wire, child_wire)
+            if leaf_coincident_endpoint == 1:
+                p1_connected = True
+            if leaf_coincident_endpoint == 2:
+                p2_connected = True
+
+        # Add endpoints to unconnected list if they are not connected
+        if not p1_connected:
+            unconnected_endpoints.append(1)
+        if not p2_connected:
+            unconnected_endpoints.append(2)
+
+        return unconnected_endpoints
+    
+
+    def _write_move_script(self, wires_to_move: list[dict]):
+        with open(self._script_export_path, 'w') as f:
+            # f.write(f'DISPLAY NONE {layer_number};\n')
+            # f.write(f'CHANGE LAYER {layer_number};\n')
+            f.write(f'GRID 1 {self._grid_unit.value};\n')
+            
+            # first select the wires that will be moved
+            f.write(f'run {SELECT_GEOMETRY_ULP} -u {self._grid_unit.value}')
+            for wire in wires_to_move:
+                f.write(f' -w {wire['layer']} {wire['x1']} {wire['y1']} {wire['x2']} {wire['y2']}')
+            f.write(';\n')
+            
+            # now delete them
+            f.write('DELETE (> 0 0);\n')
+
+            # now draw the moved wires
+            last_layer = 0
+            for wire in wires_to_move:
+                if wire['layer'] != last_layer:
+                    f.write(f'CHANGE LAYER {wire['layer']};\n')
+                    last_layer = wire['layer']
+                f.write(f'LINE {wire['width']} ')
+                if wire.get('x1_moved') is not None:
+                    f.write(f'({wire['x1_moved']} {wire['y1_moved']}) ')
+                else:
+                    f.write(f'({wire['x1']} {wire['y1']}) ')
+                f.write(f'{wire['curve']:+} ')
+                if wire.get('x2_moved') is not None:
+                    f.write(f'({wire['x2_moved']} {wire['y2_moved']});\n')
+                else:
+                    f.write(f'({wire['x2']} {wire['y2']});\n')
+
+            f.write(f'GRID LAST;\n')

@@ -23,6 +23,7 @@ The following commands are available in the Electronics Extended Toolbox plugin 
 - Measure routing length and propagation delay, including vias
 - Swap signal routing, with layer and via filtering
 - Swap component placement with different orientation options
+- Fix line connections for unconnected lines
 - Generate via fencing for signals/line geometries with preview
 - Export BOM in manufacturer specific formats, supporting THT/SMD flag in addition to the features of the schematics editor BOM exporter
 - Export component placement data in manufacturer specific formats, supporting

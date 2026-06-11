@@ -64,7 +64,7 @@ commands: list[CommandBase]  = [
     Eetb_ExportBOMCommand(edit_user_script_command),
     Eetb_AlignPackageFaceToXYPlaneCommand(),
     Eetb_AlignPackageXYToMidpointCommand(),
-#    Eetb_FixLineConnectionsCommand(script_execute_command), # temporarily disabled for first release
+    Eetb_FixLineConnectionsCommand(script_execute_command),
     Eetb_AlignPackageXYSymmetricalCommand(),
     Eetb_ViaFenceCommand(),
     Eetb_ToDoListCommand(),

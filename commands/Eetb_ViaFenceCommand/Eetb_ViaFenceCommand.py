@@ -209,10 +209,10 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
                 wires = geometry_data['wires']
         
         # collect them into trees of connected wires
-        wire_trees = self._build_wire_trees(wires)
+        wire_trees = eetbutil.build_wire_trees(wires)
 
         # re-root trees and re-orient wire segments 
-        normalized_trees = self._normalize_wire_trees(wire_trees)
+        normalized_trees = eetbutil.normalize_wire_trees(wire_trees)
 
         # calculate trees along which stitching will be done
         stitching_trees = []
@@ -239,160 +239,6 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
             else:
                 stitching_points.extend(self._get_stitching_points(tree, initial_step, spacing))
         return stitching_points
-
-
-    def _build_wire_trees(self, wires: list) -> list:
-        """Build connected component trees from wire segments using the treelib library.
-
-        This method groups connected wire segments into treelib trees where each tree
-        represents a connected component of wires. For each tree, the wire with the 
-        most negative X coordinate endpoint is used as the root of the tree.
-
-        Args:
-            wires (list): List of wire dictionaries with x1, y1, x2, y2 coordinates
-
-        Returns:
-            list: List of treelib.Tree objects
-        """
-        if not wires:
-            return []
-
-        # Create a mapping of wire endpoints to wire indices
-        endpoint_to_wires = {}
-        for i, wire in enumerate(wires):
-            p1 = (wire['x1'], wire['y1'])
-            p2 = (wire['x2'], wire['y2'])
-            for p in [p1, p2]:
-                if p not in endpoint_to_wires:
-                    endpoint_to_wires[p] = []
-                endpoint_to_wires[p].append(i)
-
-        visited = set()
-        treelib_trees = []
-
-        # Find connected components and build trees
-        for i in range(len(wires)):
-            if i in visited:
-                continue
-
-            # Identify all wires in this connected component (BFS to collect indices)
-            component_indices = set()
-            stack = [i]
-            visited.add(i)
-            while stack:
-                curr_idx = stack.pop()
-                component_indices.add(curr_idx)
-                wire = wires[curr_idx]
-                for p in [(wire['x1'], wire['y1']), (wire['x2'], wire['y2'])]:
-                    for neighbor_idx in endpoint_to_wires.get(p, []):
-                        if neighbor_idx not in visited:
-                            visited.add(neighbor_idx)
-                            stack.append(neighbor_idx)
-
-            # Choose a random root - the tree will be re-rooted later anyway
-            root_idx = min(component_indices)
-
-            # Create the treelib tree
-            tree = treelib.Tree()
-            tree.create_node(tag=f"Wire {root_idx}", identifier=root_idx, data=wires[root_idx])
-
-            # Build the tree structure using BFS from the root
-            bfs_queue = [root_idx]
-            added_to_tree = {root_idx}
-            while bfs_queue:
-                parent_idx = bfs_queue.pop(0)
-                parent_wire = wires[parent_idx]
-                # Check neighbors of the parent wire via its endpoints
-                for p in [(parent_wire['x1'], parent_wire['y1']), (parent_wire['x2'], parent_wire['y2'])]:
-                    for neighbor_idx in endpoint_to_wires.get(p, []):
-                        if neighbor_idx in component_indices and neighbor_idx not in added_to_tree:
-                            tree.create_node(tag=f"Wire {neighbor_idx}", 
-                                           identifier=neighbor_idx, 
-                                           parent=parent_idx, 
-                                           data=wires[neighbor_idx])
-                            added_to_tree.add(neighbor_idx)
-                            bfs_queue.append(neighbor_idx)
-            
-            treelib_trees.append(tree)
-
-        return treelib_trees
-
-
-    def _normalize_wire_trees(self, trees: list[treelib.Tree]) -> list[treelib.Tree]:
-        """Standardize wire trees by finding leaves and selecting the leftmost unconnected end as the new root.
-
-        This method processes each tree to identify all leaf nodes (nodes with no children) and then
-        selects the leaf with the leftmost (minimum x-coordinate) unconnected end to become the new root.
-        This ensures a consistent starting point for processing each connected component, especially
-        when dealing with complex wire geometries where the original root might not be ideal for
-        subsequent operations like stitching or offsetting.
-
-        Args:
-            trees (list[treelib.Tree]): List of treelib.Tree objects representing connected wire components
-
-        Returns:
-            list[treelib.Tree]: List of normalized treelib.Tree objects with potentially new roots
-        """
-        def reroot_tree(old_tree: treelib.Tree, leaf_id: str):
-            #self.log_to_console(old_tree.show(stdout=False)) # type: ignore
-            
-            # 1. Get path from leaf up to root: [leaf, ..., parent, root]
-            path = list(old_tree.rsearch(leaf_id))
-            new_tree = treelib.Tree()
-            
-            # 2. add the old leaf as the new root
-            new_root_node = old_tree[leaf_id]
-            new_tree.create_node(new_root_node.tag, new_root_node.identifier, parent=None, data=new_root_node.data)
-
-            # 3. Add the rest of the path, using the PREVIOUSLY added node as the parent
-            for i in range(len(path) - 1):
-                child_id = path[i+1] # The node that will become a child in the new tree
-                parent_id = path[i]  # The node we just added
-                
-                node_to_add = old_tree[child_id]
-                new_tree.create_node(node_to_add.tag, node_to_add.identifier, parent=parent_id, data=node_to_add.data)
-            
-                # 4. Handle side-branches (neighbors not on the main path)
-                for child in old_tree.children(child_id):
-                    if child.identifier not in path:
-                        # subtree() creates a copy of the branch
-                        branch = old_tree.subtree(child.identifier)
-                        new_tree.paste(child_id, branch)
-                        
-            return new_tree
-
-
-        normalized_trees = []
-        for tree in trees:
-            if not tree:
-                continue
-
-            # Find all leaf nodes (nodes with no children)
-            leaves = tree.leaves()
-            root_id = tree.root
-            if root_id and tree.children(root_id).count == 1:
-                 leaves.append(tree.get_node(tree.root)) # type: ignore
-
-            # Find the leaf with the leftmost unconnected end
-            leftmost_leaf = None
-            min_x = float('inf')
-            for leaf in leaves:
-                wire = leaf.data
-                # Check both endpoints of the wire for the leaf
-                x1, x2 = wire['x1'], wire['x2']
-                leaf_x = min(x1, x2)
-                if leaf_x < min_x:
-                    min_x = leaf_x
-                    leftmost_leaf = leaf
-
-            # If we found a leftmost leaf, make it the new root
-            if leftmost_leaf and leftmost_leaf.identifier != tree.root:
-                # Create a new tree with the leftmost leaf as root
-                normalized_trees.append(reroot_tree(tree, leftmost_leaf.identifier))
-            else:
-                # No change needed, keep the original tree
-                normalized_trees.append(tree)
-        return normalized_trees
 
 
     def _compute_stitching_trees(self, normalized_tree: treelib.Tree, offset_value: float) -> list[treelib.Tree]:

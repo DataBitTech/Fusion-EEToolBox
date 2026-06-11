@@ -29,8 +29,9 @@ import json
 import adsk.core
 from enum import Enum
 from .. import fusionAddInUtils as futil
+from ... import config
 
-EXTRACT_DATA_ULP: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ulp', 'extract_data.ulp')
+EXTRACT_DATA_ULP: str = os.path.join(config.ULP_DIR, 'extract_data.ulp')
 
 # these tags are used both in communication between Python and Javascript,
 # and in the JSON file returned by the extract_data.ulp
