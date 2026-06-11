@@ -37,21 +37,23 @@ ui = app.userInterface
 controls: list[Eetb_WorkspacePanelManager] = []
 
 class SchematicPanel(Enum):
-    SWITCH_PANEL = 'Switch'
-    EXPORT_PANEL = 'Export'
-    SCRIPT_PANEL = 'User scripts'
-    COMMON_PANEL = 'Manage'
+    SWITCH_PANEL        = 'Switch'
+    EXPORT_PANEL        = 'Export'
+    SCRIPT_PANEL        = 'User scripts'
+    ATTRIBUTES_PANEL    = 'Attributes'
+    COMMON_PANEL        = 'Manage'
     # ADD MORE PANELS HERE
 
 
 class LayoutPanel(Enum):
-    SWITCH_PANEL   = 'Switch'
-    MEASURE_PANEL  = 'Measure'
-    REWORK_PANEL   = 'Rework'
-    PATTERNS_PANEL = 'Patterns'
-    EXPORT_PANEL   = 'Export'
-    SCRIPT_PANEL   = 'User scripts'
-    COMMON_PANEL   = 'Manage'
+    SWITCH_PANEL        = 'Switch'
+    MEASURE_PANEL       = 'Measure'
+    REWORK_PANEL        = 'Rework'
+    PATTERNS_PANEL      = 'Patterns'
+    EXPORT_PANEL        = 'Export'
+    SCRIPT_PANEL        = 'User scripts'
+    ATTRIBUTES_PANEL    = 'Attributes'
+    COMMON_PANEL        = 'Manage'
     # ADD MORE PANELS HERE
 
 

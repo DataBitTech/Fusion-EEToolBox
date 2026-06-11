@@ -296,9 +296,10 @@ void json_add_attribute_data(UL_ATTRIBUTE A, int trailer)
     
     json_begin_object("", JSON_NONE);
         json_indent_reset();
-        json_string("name",     A.name,           JSON_COMMA_AND_SPACE);
-        json_string("value",    A.value,          JSON_COMMA_AND_SPACE);
-        json_bool("display",    A.display,        JSON_NONE);
+        json_string("name",         A.name,                                     JSON_COMMA_AND_SPACE);
+        json_string("value",        A.value,                                    JSON_COMMA_AND_SPACE);
+        json_bool("display_name",   A.display & ATTRIBUTE_DISPLAY_FLAG_NAME,    JSON_COMMA_AND_SPACE);
+        json_bool("display_value",  A.display & ATTRIBUTE_DISPLAY_FLAG_VALUE,   JSON_NONE);
     json_end_object(trailer);
     
     json_indent_pop();
@@ -465,21 +466,31 @@ void json_add_part_data(UL_PART P, int trailer, int add_details)
                 json_string("device",   P.device.name,                          JSON_COMMA_AND_SPACE);
                 json_string("package",  P.device.package.name,                  JSON_COMMA_AND_SPACE);
                 json_string("headline", P.device.headline,                      JSON_COMMA_AND_SPACE);
-                json_bool("populate",   P.populate,                             JSON_COMMA_AND_NEWLINE);
-                json_indent_pop();
-                json_begin_array("attributes", JSON_NEWLINE);
-                    int first = true;
-                    P.attributes(A)
+                json_bool("populate",   P.populate,                             JSON_COMMA_AND_SPACE);
+                P.instances(I)
+                {
+                    if (I.sheet > 0)
                     {
-                        if (!first)
-                            json_trailing_chars(JSON_COMMA_AND_NEWLINE);
-                        
-                        json_add_attribute_data(A, JSON_NONE);
-                        
-                        first = false;
+                        json_int("first_sheet", I.sheet,                        JSON_COMMA_AND_NEWLINE);
+                        json_indent_pop();
+                        json_begin_array("attributes", JSON_NEWLINE);
+                            int first = true;
+                            I.attributes(A)
+                            {
+                                if (!first)
+                                    json_trailing_chars(JSON_COMMA_AND_NEWLINE);
+                                
+                                json_add_attribute_data(A, JSON_NONE);
+                                
+                                first = false;
+                            }
+                            json_trailing_chars(JSON_NEWLINE);
+                        json_end_array(JSON_NEWLINE);
+                        break;
                     }
-                    json_trailing_chars(JSON_NEWLINE);
-                json_end_array(JSON_NEWLINE);
+                }
+                
+                
             }
             
     if (add_details)
@@ -685,8 +696,20 @@ void write_parts(int export_type)
                 if (export_type == ITEM_EXPORT_TYPE_DATA && !part_name_match(P.name)) 
                     continue;
                 
-                if (export_type == ITEM_EXPORT_TYPE_SELECTION && !ingroup(P))
-                    continue;
+                if (export_type == ITEM_EXPORT_TYPE_SELECTION)
+                {
+                    int isInGroup = false;
+                    P.instances(I)
+                    {
+                        if (ingroup(I))
+                        {
+                            isInGroup = true;
+                            break;
+                        }
+                    }
+                    if (!isInGroup)
+                      continue;
+                }
                 
                 if (!first)
                     json_trailing_chars(JSON_COMMA_AND_NEWLINE);

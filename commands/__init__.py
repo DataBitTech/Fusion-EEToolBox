@@ -46,18 +46,18 @@ from .Eetb_AppInfoCommand.Eetb_AppInfoCommand import Eetb_AppInfoCommand
 from .Eetb_DefineUserScriptAndULPButtonCommand.Eetb_DefineUserScriptAndULPButtonCommand import Eetb_DefineUserScriptAndULPButtonCommand
 from .Eetb_ViaFenceCommand.Eetb_ViaFenceCommand import Eetb_ViaFenceCommand
 from .Eetb_ChecklistCommand.Eetb_ChecklistCommand import Eetb_ChecklistCommand
+from .Eetb_AttributeRenameDeleteCommand.Eetb_AttributeRenameDeleteCommand import Eetb_AttributeRenameDeleteCommand
 
 
-# special command to execute scripts for non-palette commands
+# these commands are also input to other command constructors
 script_execute_command = Eetb_ExecuteEagleScriptCommand()
 edit_user_script_command = Eetb_EditUserScriptCommand()
-define_user_script_and_ulp_button_command = Eetb_DefineUserScriptAndULPButtonCommand()
 
 # Fusion will automatically call the start() and stop() functions.
 commands: list[CommandBase]  = [
     script_execute_command,
     edit_user_script_command,
-    define_user_script_and_ulp_button_command,
+    Eetb_DefineUserScriptAndULPButtonCommand(),
     Eetb_LengthAndDelayMeasureCommand(),
     Eetb_SwapSignalsCommand(),
     Eetb_SwapComponentsCommand(),
@@ -71,6 +71,8 @@ commands: list[CommandBase]  = [
     Eetb_ToDoListCommand(),
     Eetb_ChecklistCommand(),
     Eetb_UIStructureWriterCommand(),
+    Eetb_AttributeRenameDeleteCommand(script_execute_command, True),
+    Eetb_AttributeRenameDeleteCommand(script_execute_command, False),
     Eetb_AppInfoCommand() # make this the last entry so that its icon is the last one in the toolbar(s)
 ]
 

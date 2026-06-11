@@ -17,6 +17,8 @@ The following commands are available in the Electronics Extended Toolbox plugin 
   - exporting to CSV, Excel, and text files
   - calling external user scripts from Fusion for custom BOM processing processing
 - Add UI buttons for any legacy ULP or SCR script
+- Bulk delete attributes of parts
+- Bulk rename attributes of parts
 - ToDo list with links to schematic elements
 
 ### Layout editor
@@ -33,6 +35,8 @@ The following commands are available in the Electronics Extended Toolbox plugin 
   - exporting to CSV, Excel, and text files
   - calling external user scripts from Fusion for custom BOM processing processing
 - Add UI buttons for any legacy ULP or SCR script
+- Bulk delete attributes of parts
+- Bulk rename attributes of parts
 - ToDo list with links to schematic elements
 - Production checklist with global checklist items and document specific completed states
 
