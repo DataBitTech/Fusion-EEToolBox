@@ -2,18 +2,6 @@
     "documents": {
     },
     "global": {
-        "checklist_items": {
-            "items": [
-                {
-                    "id": 1,
-                    "text": "Check if stopif stop mask should be removed for vias (if applicable)"
-                },
-                {
-                    "id": 2,
-                    "text": "Update via fill layer (if applicable)"
-                }
-            ]
-        },
         "Eetb_DefineUserScriptAndULPButtonCommand": {
             "user_scripts": [
                 {

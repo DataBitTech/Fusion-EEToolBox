@@ -40,7 +40,7 @@ class Eetb_ChecklistCommand(PaletteCommandBase):
         text: str
         isSeparator: bool
 
-    _next_checklist_item_id: int = 0
+    _next_checklist_item_id: int = 1
     _checklist_items: list[ChecklistItem] = []
 
     def __init__(self):
@@ -75,10 +75,15 @@ class Eetb_ChecklistCommand(PaletteCommandBase):
 
 
     def on_command_execute(self, args: adsk.core.CommandEventArgs) -> None:
+        """Creates the palette and sends the checklist items, if necessary.
+
+        See the base class method for full details.
+        """
         palette: adsk.core.Palette = self.ui.palettes.itemById(self.palette_id)
         if palette is not None and palette.isVisible == False:
             self._send_all_data_to_html(palette)
         super().on_command_execute(args)
+
 
     def html_event_handler(self, palette: adsk.core.Palette, event_name: str, event_data = {}):
         """Handles events sent from the HTML palette.
@@ -129,7 +134,7 @@ class Eetb_ChecklistCommand(PaletteCommandBase):
         """
         try:
             Eetb_ChecklistCommand._next_checklist_item_id = int(eetbutil.config_manager.get_global_option(self.command_id, 'next_id', 1)) # type: ignore
-            Eetb_ChecklistCommand._checklist_items = eetbutil.config_manager.get_global_option(self.command_id, 'items', [])
+            Eetb_ChecklistCommand._checklist_items = eetbutil.config_manager.get_global_option(self.command_id, 'items', []) # type: ignore
         except (ValueError, TypeError):
             Eetb_ChecklistCommand._next_checklist_item_id = 1
 
