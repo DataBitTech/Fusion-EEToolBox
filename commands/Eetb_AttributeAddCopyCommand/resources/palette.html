@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_autocomplete.css">
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_checkbox.css">
     <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
     <script>
         // Function to split a string by whitespace and commas
@@ -247,11 +248,13 @@
                 const sourcePart = document.getElementById("source-part").value;
                 const targetPartList = splitString(document.getElementById("target-parts-list").textContent);
                 const copyType = document.getElementById("copy-type-selector").value;
+                const copyValue = document.getElementById("copy-part-value").checked;
 
                 const jsonData = JSON.stringify({
                         'source_part': sourcePart,
                         'target_parts': targetPartList,
-                        'copy_type': copyType
+                        'copy_type': copyType,
+                        'copy_value': copyValue 
                 });
                 adsk.fusionSendData('okButtonClicked', jsonData);
             } else {
@@ -318,6 +321,8 @@
                                 updateArrowButtons();
                             }
                         }
+                        // trigger an input validation in case an input field is updated
+                        validateInput();
                     }
                 } catch (e) {
                     console.error("Error in fusionJavaScriptHandler:", e);
@@ -344,6 +349,10 @@
                 <td><input type="text" id="source-part" name="source-part" /></td>
             </tr>
             <tr>
+                <tr>
+                    <td><label for="copy-part-value">Copy part value</label></td>
+                    <td><input type="checkbox" id="copy-part-value" name="copy-part-value" title="Overwrite target part values with source part value" /></td>
+                </tr>
                 <td><label>Target attributes</label></td>
                 <td>
                     <div class="option-icon-group">

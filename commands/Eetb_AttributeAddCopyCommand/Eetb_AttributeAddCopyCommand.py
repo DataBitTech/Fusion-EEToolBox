@@ -269,6 +269,7 @@ class Eetb_AttributeAddCopyCommand(PaletteCommandBase):
             target_parts = event_data.get('target_parts', [])
             add_type_overwrite = event_data.get('overwrite_existing', False)
             copy_type = event_data.get('copy_type', '')
+            copy_value = event_data.get('copy_value', False)
             
             if self._is_copy_operation:
                 if not source_part or not target_parts:
@@ -286,10 +287,11 @@ class Eetb_AttributeAddCopyCommand(PaletteCommandBase):
             exported_eagle_data = self.get_part_data(affected_parts)
             part_data = exported_eagle_data.get(eetbutil.ExportDataType.PART_DATA.value, [])
             
+            source_part_info = next((part for part in part_data if part.get('name') == source_part), {})
             source_attributes = []
             if self._is_copy_operation:
                 # First, get the source part attributes
-                source_attributes = next((part.get('attributes', []) for part in part_data if part.get('name') == source_part), [])
+                source_attributes = source_part_info.get('attributes', [])
                 if not source_attributes:
                     self.log_error_to_ui(f"No attributes found in source part {source_part}")
                     return
@@ -319,6 +321,10 @@ class Eetb_AttributeAddCopyCommand(PaletteCommandBase):
                 for sheet_num in sorted_sheets:
                     for target_part_info in sheet_parts[sheet_num]:
                         if self._is_copy_operation:
+                            # overwrite value from source part on request
+                            if copy_value:
+                                f.write(f"VALUE {target_part_info['name']} '{source_part_info['value']}';\n")
+
                             # Copy each attribute from source to target
                             for attr in source_attributes:
                                 attr_name = attr.get('name', '')
