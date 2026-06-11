@@ -19,9 +19,10 @@ ElectronicsExtendedToolBox/
 │   │   ├── javascript/             # Common JavaScript utilities
 │   │   ├── *.py                    # Common Python utility functions
 │   │   └── ulp/                    # Eagle ULP scripts
-│   ├── fusionAddInUtils/           # External Fusion utilities (do not modify)
-|   ├── et_xmlfile/                 # XML handling python library (do not modify)
-|   └── openpyxl/                   # Excel format handling python library (do not modify)
+│   ├── fusionAddInUtils/           # External Fusion utilities (3rd party, do not modify)
+|   ├── et_xmlfile/                 # XML handling python library (3rd party, do not modify)
+|   ├── openpyxl/                   # Excel format handling python library (3rd party, do not modify)
+|   └── treelib/                    # Tree handling python library (3rd party, do not modify)
 ├── ElectronicsExtendedToolBox.py   # Main plugin files
 ├── DEFAULT_CONFIG.json             # Default configuration file, used only once after installation
 ├── CONFIG.json                     # User configuration file, stores user preferences

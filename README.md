@@ -23,7 +23,7 @@ The following commands are available in the Electronics Extended Toolbox plugin 
 - Measure routing length and propagation delay, including vias
 - Swap signal routing, with layer and via filtering
 - Swap component placement with different orientation options
-- Fix line connections for imported DXF files
+- Generate via fencing for signals/line geometries with preview
 - Export BOM in manufacturer specific formats, supporting THT/SMD flag in addition to the features of the schematics editor BOM exporter
 - Export component placement data in manufacturer specific formats, supporting
   - rotation and translation fixes specific to the manufacturer
@@ -33,7 +33,6 @@ The following commands are available in the Electronics Extended Toolbox plugin 
   - calling external user scripts from Fusion for custom BOM processing processing
 - Add UI buttons for any legacy ULP or SCR script
 - ToDo list with links to schematic elements
-- Customizable checklist for design review before production
 
 ### 3D package editor
 - Snap 3D model to PCB surface
@@ -45,12 +44,11 @@ The following commands are available in the Electronics Extended Toolbox plugin 
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-electronics-extended-toolbox/releases)
-2. Extract the contents to your Fusion 360 add-ins folder. Fusion can be kept running in the background.
-   ```
-   You can find your configured add-in location in the Preferences > General > API > Default Path for Scripts and Add-ins
-   ```
-3. On the Utilities ribbon, find the Add-ins button. You can select if you want to run it once manually, or automatically on startup
+1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-EEToolbox/releases)
+2. a. Extract the contents to your Fusion 360 add-ins folder. Fusion can be kept running in the background.
+      Note: You can find your configured add-in location in the Preferences > General > API > Default Path for Scripts and Add-ins
+   b. Extract the contents to a path of your choosing. Fusion can be kept running in the background.
+3. On the Utilities ribbon, find the Add-ins button. If you chose step 2.a you can select if you want to run it once manually, or automatically on startup. If you chose step 2.b you have to use the Add button on the top of the dialog, then 'Script or add-in from device'
 4. Enjoy, share, contribute and give feedback!
 
 ## Contributing
@@ -62,5 +60,7 @@ Contributions are most welcome! Please consult the [CONTRIBUTING.md](CONTRIBUTIN
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
+
+This project uses 3rd party libraries -  see the [NOTICE](NOTICE) file for details.
 
 Thank you for all the community contributors for sharing their knowledge and code snippets!
