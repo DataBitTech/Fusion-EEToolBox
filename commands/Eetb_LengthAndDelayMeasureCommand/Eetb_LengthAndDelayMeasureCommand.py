@@ -126,6 +126,11 @@ class Eetb_LengthAndDelayMeasureCommand(PaletteCommandBase):
             eetbutil.config_manager.store_document_option(self.document_id, self.palette_id, "signal_groups", signal_groups)
             palette.sendInfoToHTML('setAnalysisResults', json.dumps(analysis_results))
 
+            # Also update the signal list and the selection
+            signal_data = self.get_eagle_data([{'type': eetbutil.ExportDataType.SIGNAL_LIST.value, 'args': []}, 
+                                               {'type': eetbutil.ExportDataType.SIGNAL_SELECTION.value, 'args': []}])
+            palette.sendInfoToHTML('setEagleData', json.dumps(signal_data))
+
         elif event_name == 'groupClicked':
             command = f"ELECTRON.RUN SHOW {' '.join(str(signal_name) for signal_name in event_data)}"
             PaletteCommandBase.log_to_console(f"Running {command}")
