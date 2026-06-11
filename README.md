@@ -54,12 +54,12 @@ The following commands are available in the Electronics Extended Toolbox plugin 
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-EEToolbox/releases) or simply clone this repository
-2. a. Extract the contents to your Fusion 360 add-ins folder. Fusion can be kept running in the background.
-      Note: You can find your configured add-in location in the Preferences > General > API > Default Path for Scripts and Add-ins
-   b. Extract the contents to a path of your choosing. Fusion can be kept running in the background.
-3. On the Utilities ribbon, find the Add-ins button. If you chose step 2.a you can select if you want to run it once manually, or automatically on startup. If you chose step 2.b you have to use the Add button on the top of the dialog, then 'Script or add-in from device'
-4. Enjoy, share, contribute and give feedback!
+The easiest way to install is using the installer ([Windows](https://marketplace.autodesk.com/apps/1ab36649-512f-4797-9bdc-68179270dac9?priceId=85abea3a-13a8-444f-a41c-9bd409506c40) and [MacOS](https://marketplace.autodesk.com/apps/7fa2b512-d2b1-4e0c-8076-def8fdc63ebc?priceId=b5001295-273e-437b-8271-46be2d927309)) from the Autodesk App Store 
+
+If you prefer to install manually or want have the most up-to-date version, follow these steps:
+1. Download the latest release from the [releases page](https://github.com/DataBitTech/Fusion-EEToolbox/releases) and extract or simply clone this repository to a path of your choosing. Fusion can be kept running in the background.
+2. On the Utilities ribbon, find the Add-ins button. Use the Add button ('+' sign) on the top of the dialog, then 'Script or add-in from device'
+3. Enjoy, share, contribute and give feedback!
 
 ## Tutorials
 
