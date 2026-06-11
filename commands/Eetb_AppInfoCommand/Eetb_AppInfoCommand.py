@@ -61,12 +61,14 @@ class Eetb_AppInfoCommand(CommandBase):
         # info text
         self._info_text = f"""
             <h2>Electronics Extended Toolbox</h2>
-            <p><b>Version:</b> {self._version}</p>
+            <p><h3>Version: {self._version}</h3></p>
             <p>This is an open-source Fusion 360 add-in designed to extend the capabilities of the Electronics workspace. It provides additional tools and utilities for electronic design and documentation.</p>
             
             <p>Contributions are welcome! You can find the source code and contribute at our <a href="https://github.com/DataBitTech/Fusion-EEToolBox">GitHub repository</a>.</p>
 
             <p>The project is licensed under the MIT License. See the LICENSE file in the repository for more details.</p>
+
+            <p>There are video tutorials available on <a href="https://youtube.com/playlist?list=PLa4BUswmWtMA-BXwLmQtifTjxLAAvYVyo&si=h_H7UBg1845v0NrX">YouTube</a></p>
 
             <p><h3>Privacy Policy</h3></p>
             <p>This application does not collect any personal data. All user configuration settings are stored locally on your device and are never transmitted to any external servers.</p>

@@ -46,6 +46,8 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
             icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources'))
         super().__init__(command_attributes, edit_user_script_command)
 
+        self._schematic_warning_ftext = "<b>WARNING</b><br>If you are using modules in your schematic, you need to run this command from the layout editor!"
+
         self.attribute_map_col_names_EuroCircuits = [
             # column to map to attribute    optional?
             ('Manufacturer Part Number',    False),
@@ -116,10 +118,14 @@ class Eetb_ExportBOMCommand(PartDataExportCommandBase):
         super().on_format_selection_input_changed(inputs)
 
         format_name = self.format_selection_input.selectedItem.name
-        if format_name == 'EuroCircuits' and self._app.activeDocument.dataFile.fileExtension == 'fsch':
-            self.warning_label.formattedText = "<b>WARNING</b> The 'Mounting type' column (SMD or THT) in the output file needs to be filled out by hand! Run this command from the layout editor to automatically include that data"
-            self.warning_label.numRows = 5
+        if self._app.activeDocument.dataFile.fileExtension == 'fsch':
+            self.warning_label.formattedText = self._schematic_warning_ftext
+            self.warning_label.numRows = 3
             self.warning_label.isVisible = True
+            if format_name == 'EuroCircuits':
+                self.warning_label.formattedText += "<br><br>The 'Mounting type' column (SMD or THT) in the output file needs to be filled out by hand! Run this command from the layout editor to automatically include that data"
+                self.warning_label.numRows = 7
+            
 
 
     def on_command_created(self, args: adsk.core.CommandCreatedEventArgs):

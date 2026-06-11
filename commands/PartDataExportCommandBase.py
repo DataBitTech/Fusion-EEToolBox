@@ -32,6 +32,7 @@ import re
 import sys
 import io
 import shlex
+import platform
 from pathlib import Path
 from typing import List, Optional, TypedDict, Callable, Tuple
 import adsk.core
@@ -149,6 +150,7 @@ class PartDataExportCommandBase(CommandBase):
             None: This method does not return a value.
         """
         eetbutil.config_manager.store_document_option(self.document_id, self.command_id, "last_format", format_name)
+        eetbutil.config_manager.store_document_option(self.document_id, self.command_id, "open_output", self.open_file_on_ok_chkbox.value)
         filters = self._collect_filters()
         filters_formatted = [{'filter_type': filter_type, 'regex': regex} for filter_type, regex in filters]
         attribute_mapping = []
@@ -396,7 +398,6 @@ class PartDataExportCommandBase(CommandBase):
         self.filetype_selection_input.isVisible = not is_user_script and not is_custom_format
         self._file_type_sel_label.isVisible = not is_user_script and not is_custom_format
         self.mapping_group.isVisible = not is_user_script and self._supported_formats[format_index]['attribute_mapping'] is not None
-        self.warning_label.isVisible = False
         
         # Find and select the default format item
         if not is_user_script and not is_custom_format:
@@ -692,6 +693,7 @@ class PartDataExportCommandBase(CommandBase):
             if filetype != PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM:
                 self.filetype_selection_input.listItems.add(filetype.value, False)
         self.filetype_selection_input.listItems[0].isSelected = True
+        self.open_file_on_ok_chkbox = inputs.addBoolValueInput('open_file_chkbox', 'Open exported file when finished', True, '')
 
         # create the image buttons
         self._add_format_button_input = inputs.addBoolValueInput('add_format_img', '', False, icon_path_add)
@@ -758,6 +760,9 @@ class PartDataExportCommandBase(CommandBase):
         self._filter_table.addToolbarCommandInput(self._remove_filter_button_input)
 
         # try to restore the last used format and its options
+        open_output = eetbutil.config_manager.get_document_option(self.document_id, self.command_id, "open_output")
+        if open_output and open_output == True:
+            self.open_file_on_ok_chkbox.value = True
         last_format = eetbutil.config_manager.get_document_option(self.document_id, self.command_id, "last_format")
         if last_format and any(format['format_name'] == last_format for format in self._supported_formats):
             selected_format_item = next((item for item in self.format_selection_input.listItems if item.name == last_format), None)
@@ -960,6 +965,14 @@ class PartDataExportCommandBase(CommandBase):
 
                 self.log_to_console(f'Results saved to {output_file}')
                 self.save_config(format_name, os.path.dirname(output_file))
+
+                if self.open_file_on_ok_chkbox.value:
+                    if platform.system() == 'Darwin':       # type: ignore # macOS
+                        subprocess.call(('open', output_file))
+                    elif platform.system() == 'Windows':    # type: ignore # Windows
+                        os.startfile(output_file)
+                    else:                                   # Linux/POSIX
+                        subprocess.call(('xdg-open', output_file))
             except IOError as e:
                 self.ui.messageBox(f"Error writing to file {output_file}: {e}")
 
