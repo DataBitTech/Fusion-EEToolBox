@@ -34,6 +34,7 @@ The following commands are available in the Electronics Extended Toolbox plugin 
   - calling external user scripts from Fusion for custom BOM processing processing
 - Add UI buttons for any legacy ULP or SCR script
 - ToDo list with links to schematic elements
+- Production checklist with global checklist items and document specific completed states
 
 ### 3D package editor
 - Snap 3D model to PCB surface

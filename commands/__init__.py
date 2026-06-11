@@ -45,6 +45,7 @@ from .Eetb_UIStructureWriterCommand.Eetb_UIStructureWriterCommand import Eetb_UI
 from .Eetb_AppInfoCommand.Eetb_AppInfoCommand import Eetb_AppInfoCommand
 from .Eetb_DefineUserScriptAndULPButtonCommand.Eetb_DefineUserScriptAndULPButtonCommand import Eetb_DefineUserScriptAndULPButtonCommand
 from .Eetb_ViaFenceCommand.Eetb_ViaFenceCommand import Eetb_ViaFenceCommand
+from .Eetb_ChecklistCommand.Eetb_ChecklistCommand import Eetb_ChecklistCommand
 
 
 # special command to execute scripts for non-palette commands
@@ -68,6 +69,7 @@ commands: list[CommandBase]  = [
     Eetb_AlignPackageXYSymmetricalCommand(),
     Eetb_ViaFenceCommand(),
     Eetb_ToDoListCommand(),
+    Eetb_ChecklistCommand(),
     Eetb_UIStructureWriterCommand(),
     Eetb_AppInfoCommand() # make this the last entry so that its icon is the last one in the toolbar(s)
 ]

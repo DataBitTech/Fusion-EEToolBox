@@ -5,7 +5,7 @@
 	"description":	{
 		"en":	"Extended toolbox with useful commands for the electronics workspace in Fusion"
 	},
-	"version":	"1.1.0",
+	"version":	"1.2.0",
 	"runOnStartup":	true,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true,

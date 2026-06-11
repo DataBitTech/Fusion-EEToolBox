@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production checklist</title>
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
+    <link rel="stylesheet" href="./local.css">
+    <!-- Sortable.js CDN -->
+    <script src="../../../lib/javascript/Sortable.min.js"></script>
+    <script type="module" src="../../../lib/eetbUtils/javascript/eetb_common.js"></script>
+    <script>
+        // Global variables
+        window.checklistItems = [];
+        window.checklistItems_editing = [];
+        window.checkedItemIds = [];
+        window.editMode = false;
+        window.sortableInstance = null;
+
+        // FUSION 360 HANDLER
+        window.fusionJavaScriptHandler = {
+            handle: function (action, data) {
+                try {
+                    if (action === 'setChecklistData') {
+                        const payload = JSON.parse(data);
+                        window.checklistItems = payload.items || [];
+                        
+                        const rawChecked = payload.checkedItemIds || {};
+                        if (Array.isArray(rawChecked)) {
+                            window.checkedItemIds = rawChecked.map(id => String(id));
+                        } else {
+                            window.checkedItemIds = Object.keys(rawChecked).filter(id => rawChecked[id]);
+                        }
+                        window.editMode = false;
+                        renderItems();
+                    } else if (action === 'setTheme') {
+                        if (data.includes('Light')) {
+                            document.body.classList.add('light-theme');
+                            document.body.classList.remove('dark-theme');
+                        } else {
+                            document.body.classList.add('dark-theme');
+                            document.body.classList.remove('light-theme');
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error in fusionJavaScriptHandler:", e);
+                }
+                return "OK";
+            }
+        };
+
+        /**
+         * Simplified render function
+         * @param {boolean} editMode 
+         */
+        function renderItems() {
+            const container = document.getElementById('checklist');
+            container.innerHTML = '';
+            const editMode = window.editMode;
+            const itemsToRender = editMode ? window.checklistItems_editing : window.checklistItems;
+
+            // Clear any existing Sortable instance before creating new one
+            if (window.sortableInstance) {
+                try {
+                    window.sortableInstance.destroy();
+                } catch (e) {
+                    // Ignore errors if sortable instance is already destroyed
+                }
+                window.sortableInstance = null;
+            }
+
+            itemsToRender.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'checklist-item';
+                row.id = `item-${item.id}-${index}`;
+                row.setAttribute('data-id', item.id);
+                row.setAttribute('data-index', index);
+
+                if (item.isSeparator) {
+                    // Line Before
+                    const lineBefore = document.createElement('div');
+                    lineBefore.className = 'separator-line';
+                    if (editMode) lineBefore.classList.add('drag-handle');
+                    row.appendChild(lineBefore);
+
+                    // Separator Text
+                    const text = document.createElement('span');
+                    text.className = 'item-text separator-text';
+                    text.innerText = item.text;
+                    if (editMode) {
+                        text.contentEditable = "true";
+                        text.oninput = function() { item.text = text.innerText.trim(); };
+                        text.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); text.blur(); } };
+                    }
+                    row.appendChild(text);
+
+                    // Line After
+                    const lineAfter = document.createElement('div');
+                    lineAfter.className = 'separator-line';
+                    if (editMode) lineAfter.classList.add('drag-handle');
+                    row.appendChild(lineAfter);
+
+                } else {
+                    // Normal Item
+                    if (editMode) {
+                        const handle = document.createElement('span');
+                        handle.className = 'drag-handle';
+                        handle.innerText = '=';
+                        row.appendChild(handle);
+                    } else {
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.className = 'option'; // Use the existing option class
+                        const isChecked = window.checkedItemIds.includes(String(item.id));
+                        if (isChecked) cb.checked = true;
+                        
+                        cb.onchange = function() {
+                            const idStr = String(item.id);
+                            if (cb.checked) {
+                                if (!window.checkedItemIds.includes(idStr)) window.checkedItemIds.push(idStr);
+                            } else {
+                                window.checkedItemIds = window.checkedItemIds.filter(id => id !== idStr);
+                            }
+                            adsk.fusionSendData('checkedStateChanged', JSON.stringify(window.checkedItemIds));
+                        };
+                        row.appendChild(cb);
+                    }
+
+                    const text = document.createElement('span');
+                    text.className = 'item-text';
+                    text.innerText = item.text;
+                    if (editMode) {
+                        text.contentEditable = "true";
+                        text.oninput = function() {
+                            item.text = text.innerText.trim();
+                        };
+                        text.onkeydown = function(e) {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                text.blur();
+                            }
+                        };
+                    }
+                    row.appendChild(text);
+                }
+
+                if (editMode) {
+                    const trashBtn = document.createElement('img');
+                    trashBtn.src = '../../../lib/eetbUtils/icons/trash/16x16.svg';
+                    trashBtn.className = 'row-btn';
+                    trashBtn.onclick = function() {
+                        window.checklistItems_editing.splice(index, 1);
+                        renderItems();
+                    };
+                    row.appendChild(trashBtn);
+                }
+
+                container.appendChild(row);
+            });
+            
+            updateFooterButtons();
+
+            if (editMode) {
+                // Only create Sortable instance if it doesn't exist yet
+                if (window.sortableInstance === null && editMode) {
+                    window.sortableInstance = new Sortable(container, {
+                        animation: 150,
+                        handle: '.drag-handle',
+                        ghostClass: 'sortable-ghost',
+                        chosenClass: 'sortable-chosen',
+                        dragClass: 'sortable-drag',
+                        forceFallback: true,
+                        onEnd: function () {
+                            const finalItems = [];
+                            Array.from(container.children).forEach(el => {
+                                const originalIndex = parseInt(el.getAttribute('data-index'));
+                                const item = window.checklistItems_editing[originalIndex];
+                                // Update text from DOM just in case
+                                item.text = el.querySelector('.item-text').innerText.trim();
+                                finalItems.push(item);
+                            });
+                            window.checklistItems_editing = finalItems;
+                            renderItems();
+                        }
+                    });
+                }
+            }
+        }
+
+        function updateFooterButtons() {
+            const btnEdit = document.getElementById('btn-edit');
+            const btnAddItem = document.getElementById('btn-add-item');
+            const btnAddSeparator = document.getElementById('btn-add-separator');
+            const btnAccept = document.getElementById('btn-accept');
+            const btnCancel = document.getElementById('btn-cancel');
+
+            if (window.editMode) {
+                btnEdit.classList.add('disabled');
+                btnAddItem.classList.remove('disabled');
+                btnAddSeparator.classList.remove('disabled');
+                btnAccept.classList.remove('disabled');
+                btnCancel.classList.remove('disabled');
+            } else {
+                btnEdit.classList.remove('disabled');
+                btnAddItem.classList.add('disabled');
+                btnAddSeparator.classList.add('disabled');
+                btnAccept.classList.add('disabled');
+                btnCancel.classList.add('disabled');
+            }
+        }
+
+        function startEdit() {
+            window.editMode = true;
+            window.checklistItems_editing = window.checklistItems.map(item => ({...item}));
+            updateFooterButtons();
+            renderItems();
+        }
+
+        function addItem(isSeparator) {
+            if (!window.editMode) return;
+            window.checklistItems_editing.push({ id: 0, text: "", isSeparator: isSeparator });
+            renderItems();
+            setTimeout(() => {
+                const rows = document.querySelectorAll('.checklist-item');
+                if (rows.length > 0) {
+                    const lastRow = rows[rows.length - 1];
+                    const textSpan = lastRow.querySelector('.item-text');
+                    textSpan.focus();
+                }
+            }, 0);
+        }
+
+        function acceptEdit() {
+            if (!window.editMode) return;
+            window.editMode = false;
+            window.checklistItems = window.checklistItems_editing.map(item => ({...item}));
+            updateFooterButtons();
+            adsk.fusionSendData('checklistChanged', JSON.stringify({ items: window.checklistItems }));
+            renderItems();
+        }
+
+        function cancelEdit() {
+            if (!window.editMode) return;
+            window.checklistItems_editing = [];
+            window.editMode = false;
+            updateFooterButtons();
+            renderItems();
+        }
+    </script>
+</head>
+<body class="dark-theme">
+    <div id="checklist">
+        <!-- Items will be injected here -->
+    </div>
+
+    <div class="footer option-icon-group">
+        <img id="btn-edit" class="option-icon" 
+             src="../../../lib/eetbUtils/icons/EditShortcut/16x16.png"
+             onclick="startEdit()" 
+             title="Edit Checklist">
+        
+        <img id="btn-add-item" class="option-icon disabled" 
+             src="./add_list_item.png" 
+             onclick="addItem(false)" 
+             title="Add Item">
+
+        <img id="btn-add-separator" class="option-icon disabled" 
+             src="./add_separator.png" 
+             onclick="addItem(true)" 
+             title="Add Separator">
+
+        <img id="btn-cancel" class="option-icon disabled" 
+             src="../../../lib/eetbUtils/icons/Delete/16x16.png" 
+             onclick="cancelEdit()" 
+             title="Cancel Changes">
+
+        <img id="btn-accept" class="option-icon disabled" 
+             src="./accept_edit.png"
+             onclick="acceptEdit()" 
+             title="Accept Changes">
+    </div>
+</body>
+</html>
