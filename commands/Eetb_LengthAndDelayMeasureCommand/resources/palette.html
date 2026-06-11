@@ -270,7 +270,11 @@
                     } else if (action === 'showWarning') {
                         const warningDiv = document.getElementById('warningDisplay');
                         warningDiv.textContent = data;
-                        warningDiv.style.display = 'block';
+                        if (data === '') {
+                            warningDiv.style.display = 'none';
+                        } else {
+                            warningDiv.style.display = 'block';
+                        }
                     } else if (action === 'setStackupFileName') {
                         updateStackupDisplay(data);
                         requestAnalysis();
@@ -349,7 +353,7 @@
     <div class="input-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
         <label for="signalNameInput">Add signal</label>
         <input type="text" id="signalNameInput" style="flex-grow: 1;">
-        <button id="measureRouteBtn" onclick="onMeasureRoute()">New group</button>
+        <button id="measureRouteBtn" onclick="onMeasureRoute()" class="secondary">New group</button>
     </div>
 
     <div class="button-group">

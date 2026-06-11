@@ -44,7 +44,7 @@ class Eetb_LengthAndDelayMeasureCommand(PaletteCommandBase):
     def __init__(self):
         command_attributes = CommandBase.MandatoryCommandAttributes(
             command_id = f'{config.ADDIN_NAME}_LengthAndDelayMeasure_command_id',
-            command_name = 'Route length and delay',
+            command_name = 'Length and delay',
             command_description = 'Measure routing length and delay',
             json_temp_path = os.path.join(config.TEMP_DIR, f'fusion360_{__class__.__qualname__}_extracted_data.json'),
             icon_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources'))
@@ -84,7 +84,8 @@ class Eetb_LengthAndDelayMeasureCommand(PaletteCommandBase):
        # Load stackup parser
         self.stackup = eetbutil.get_stackup(self.document_id)
         if not self.stackup:
-            palette.sendInfoToHTML('showWarning', 'No stackup file provided, only lengths are calculated, excluding vias')
+            palette.sendInfoToHTML('showWarning', 'No stackup file provided, only routing lengths can be calculated, without via lengths or delays. \
+                                   Stackup can be exported from Rules->Layer stack->Save as. Make sure to keep the saved estackup file up to date in case of changes!')
         else:
             palette.sendInfoToHTML('setStackupFileName', self.stackup.file_path)
 
@@ -148,6 +149,8 @@ class Eetb_LengthAndDelayMeasureCommand(PaletteCommandBase):
                 self.stackup = eetbutil.config_manager.get_stackup(self.document_id, filename)
                 if self.stackup:
                     palette.sendInfoToHTML('setStackupFileName', filename)
+                    palette.sendInfoToHTML('showWarning', '')
+
 
 
     def _perform_analysis(self, signal_geometry_data, signal_groups : list [list[str]]):
