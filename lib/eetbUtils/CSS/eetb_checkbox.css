@@ -1,0 +1,63 @@
+/* 
+Checkbox styling for EETB commands with dark/light theme support
+*/
+
+/* Common checkbox styling */
+input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    border: 2px solid var(--checkbox-border-color, #D1D1D1);
+    border-radius: 2px;
+    position: relative;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+input[type="checkbox"]:checked {
+    background-color: var(--checkbox-checked-bg, #007ACC);
+    border-color: var(--checkbox-checked-border, #007ACC);
+}
+
+input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 9px;
+    border: solid var(--checkbox-checkmark-color, white);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+input[type="checkbox"]:hover:not(:checked) {
+    border-color: var(--checkbox-hover-border, #007ACC);
+}
+
+/* Dark theme styles for checkboxes */
+body.dark-theme input[type="checkbox"] {
+    --checkbox-border-color: #D1D1D1;
+    --checkbox-checked-bg: #007ACC;
+    --checkbox-checked-border: #007ACC;
+    --checkbox-checkmark-color: white;
+    --checkbox-hover-border: #007ACC;
+}
+
+/* Light theme styles for checkboxes */
+body.light-theme input[type="checkbox"] {
+    --checkbox-border-color: #454545;
+    --checkbox-checked-bg: #007ACC;
+    --checkbox-checked-border: #007ACC;
+    --checkbox-checkmark-color: white;
+    --checkbox-hover-border: #007ACC;
+}
+
+/* Specific styling for ToDoListCommand items */
+.todo-item input[type="checkbox"] {
+    /* This will inherit from the common styling above */
+}

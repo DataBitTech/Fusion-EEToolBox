@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ToDo</title>
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_checkbox.css">
     <link rel="stylesheet" href="./local.css">
 </head>
 <body>
@@ -116,17 +117,11 @@
         window.fusionJavaScriptHandler = {
             handle: function (action, data) {
                 try {
-                    if (action === 'setItems') {
+                    if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action === 'setItems') {
                         const items = JSON.parse(data);
                         renderItems(items);
-                    } else if (action === 'setTheme') {
-                        if (data.includes('Light')) {
-                            document.body.classList.remove('dark-theme');
-                            document.body.classList.add('light-theme');
-                        } else {
-                            document.body.classList.remove('light-theme');
-                            document.body.classList.add('dark-theme');
-                        }
                     }
                 } catch (e) {
                     displayError(`Exception: ${e}\nData: ${data}`);

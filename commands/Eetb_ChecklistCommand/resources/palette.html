@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Production checklist</title>
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_common.css">
+    <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_checkbox.css">
     <link rel="stylesheet" href="../../../lib/eetbUtils/CSS/eetb_option_icon.css">
     <link rel="stylesheet" href="./local.css">
     <!-- Sortable.js CDN -->
@@ -22,7 +23,9 @@
         window.fusionJavaScriptHandler = {
             handle: function (action, data) {
                 try {
-                    if (action === 'setChecklistData') {
+                    if (action === 'setTheme') {
+                        document.body.className = data.includes('Dark') ? 'dark-theme' : 'light-theme';
+                    } else if (action === 'setChecklistData') {
                         const payload = JSON.parse(data);
                         window.checklistItems = payload.items || [];
                         
