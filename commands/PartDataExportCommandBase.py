@@ -167,50 +167,6 @@ class PartDataExportCommandBase(CommandBase):
         eetbutil.config_manager.store_document_option(self.document_id, self.command_id, format_name, user_selection)
 
 
-    def group_by_parts(self, part_data: list[dict], keys_to_ignore: list[str] = [], consider_all_attributes = False, significant_attributes: list[str] = []) -> list[dict]:
-        """
-        Groups part data by part number, aggregating attributes from multiple entries.
-
-        This method takes a list of part data dictionaries and groups them by the 'part_number' key.
-        For each unique part number, it creates a single dictionary that contains all attributes
-        from the original entries, with duplicate attributes merged into lists. Attributes specified
-        in `keys_to_ignore` are ignored during the grouping process. The method ensures that
-        part data is consolidated for easier processing and export, especially when dealing with
-        multiple instances of the same part in a design.
-        Args:
-            part_data (list[dict]): A list of dictionaries, where each dictionary represents
-                                    a part with its attributes as key-value pairs. Each dictionary
-                                    must contain a 'part_number' key for grouping.
-            keys_to_ignore (list[str], optional): A list of attribute names to exclude from
-                                                 the grouping process. Defaults to an empty list.
-
-        Returns:
-            list[dict]: A list of dictionaries, where each dictionary represents a unique part
-                        with its attributes consolidated. Attributes that appear multiple times
-                        are stored as lists, while unique attributes are stored as single values.
-        """
-        group_dict: dict[str, tuple[str, int, dict]] = {}
-        # extend the keys to ignore
-        keys_to_ignore.append('name')
-        for part in part_data:
-            designator = part.get("name", "")
-            serialData = self._serialize_part_data(part, keys_to_ignore, consider_all_attributes, significant_attributes)
-            if serialData not in group_dict.keys():
-                group_dict[serialData] = (designator, 1, part)
-            else:
-                (part_list, count, part_dict) = group_dict[serialData]
-                part_list += ', ' + designator
-                count += 1
-                group_dict[serialData] = (part_list, count, part_dict)
-
-        grouped_data = []
-        for (part_list, count, part_dict) in group_dict.values():
-            part_dict['name'] = part_list
-            part_dict['__quantity__'] = count
-            grouped_data.append(part_dict)
-        return grouped_data
-
-
     def add_supported_format(self, format_name: str, attributeMappings: Optional[list[tuple[str, bool]]], 
                              function: Callable, default_extension: FileExtensions = FileExtensions.FILE_EXTENSION_XLSX) -> None:
         """Add a new supported format to the export command.
@@ -392,14 +348,19 @@ class PartDataExportCommandBase(CommandBase):
         format_index = self.get_selected_format_index()
         default_extension = self._supported_formats[format_index]['default_extension']
         is_user_script = self._supported_formats[format_index]['built_in'] == False
-        is_custom_format = default_extension == PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM.value
+        is_custom_format = default_extension == PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM
         self._remove_format_button_input.isEnabled = is_user_script
         self._edit_format_button_input.isEnabled = is_user_script
-        self.open_file_on_ok_chkbox.isVisible = not is_user_script
+        self.open_file_on_ok_chkbox.isVisible = not is_user_script 
         self.filetype_selection_input.isVisible = not is_user_script and not is_custom_format
         self._file_type_sel_label.isVisible = not is_user_script and not is_custom_format
         self.mapping_group.isVisible = not is_user_script and self._supported_formats[format_index]['attribute_mapping'] is not None
         
+        # try to restore the open output checkbox
+        open_output = eetbutil.config_manager.get_document_option(self.document_id, self.command_id, "open_output")
+        if open_output:
+            self.open_file_on_ok_chkbox.value = open_output
+
         # Find and select the default format item
         if not is_user_script and not is_custom_format:
             for item in self.filetype_selection_input.listItems:
@@ -424,9 +385,12 @@ class PartDataExportCommandBase(CommandBase):
         self.mapping_table.clear()
 
         attribute_mapped_column_names = self._supported_formats[format_index]['attribute_mapping']
-        if attribute_mapped_column_names is not None:
+        if attribute_mapped_column_names:
             for (column_name, isOptional) in attribute_mapped_column_names:
                 self._add_attribute_mapping(inputs, column_name, isOptional)
+            self.mapping_group.isVisible = True
+        else:
+            self.mapping_group.isVisible = False
 
         # try to restore the attribute mapping
         if user_selection and 'attributes' in user_selection:
@@ -981,49 +945,6 @@ class PartDataExportCommandBase(CommandBase):
     #####################
     # UTILITY FUNCTIONS #
     #####################
-
-    def _serialize_part_data(self, part: dict, keys_to_ignore: list[str] = [], consider_all_attributes = False, significant_attributes: list[str] = []) -> str:
-        """Serializes part data into a string representation.
-
-        This method takes a dictionary representing a part and converts it into a
-        string representation. It allows for filtering out specific keys, considering
-        all attributes, or focusing on significant attributes. The serialized string
-        is formatted as a tab-separated list of key-value pairs.
-
-        Args:
-            part (dict): A dictionary representing the part data, where keys are
-                attribute names and values are attribute values.
-            keys_to_ignore (list[str], optional): A list of keys to exclude from
-                the serialization. Defaults to an empty list.
-            consider_all_attributes (bool, optional): If True, includes all
-                attributes in the serialization. If False, only includes attributes
-                specified in `significant_attributes`. Defaults to False.
-            significant_attributes (list[str], optional): A list of attribute names
-                to include in the serialization when `consider_all_attributes` is False.
-                Defaults to an empty list.
-
-        Returns:
-            str: A tab-separated string representation of the part data, with each
-                key-value pair separated by a tab character.
-        """
-        serialized_data = ''
-        for key, value in part.items():
-            if key not in keys_to_ignore:
-                if key == "attributes" and isinstance(value, list):
-                    filtered_attrs = value
-                    if not consider_all_attributes:
-                        # Only include attributes that are in significant_attributes
-                        filtered_attrs = [attr for attr in value if attr.get("name") in significant_attributes]
-                    # Sort the filtered attributes by name to ensure consistent ordering
-                    filtered_attrs = sorted(filtered_attrs, key=lambda attr: attr.get("name", ""))
-                    serialized_data += ",".join([f"{attr['name']}={attr['value']}" for attr in filtered_attrs])
-                else:
-                    serialized_data += f"{key}={value},"
-        # Remove the trailing comma
-        if serialized_data.endswith(","):
-            serialized_data = serialized_data[:-1]
-        return serialized_data
-
 
     def get_selected_format_index(self) -> int:
         """Returns the index of the currently selected format in the format selection dropdown.

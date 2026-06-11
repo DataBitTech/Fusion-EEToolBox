@@ -35,14 +35,13 @@ The following commands are available in the Electronics Extended Toolbox plugin 
   - filtering out components using user defined Regex patterns
   - mapping attributes to BOM columns
   - exporting to CSV, Excel, and text files
-  - calling external user scripts from Fusion for custom BOM processing processing
 - Add UI buttons for any legacy ULP or SCR script
 - Bulk add attribute to components
 - Bulk delete an attribute from components
 - Bulk rename attribute of components
 - Bulk copy attributes between components
 - ToDo list with links to schematic elements
-- Production checklist with global checklist items and document specific completed states
+- Production checklist with global checklist items and board specific completed states
 
 ### 3D package editor
 - Snap 3D model to PCB surface

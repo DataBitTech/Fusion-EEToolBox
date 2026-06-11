@@ -24,6 +24,7 @@
 # SOFTWARE.
 #======================================================
 
+from enum import Enum
 import math, os
 from pathlib import Path
 import adsk.core
@@ -34,7 +35,19 @@ from ..Eetb_EditUserScriptCommand.Eetb_EditUserScriptCommand import Eetb_EditUse
 from ... import config
 from ... import controls as eetbControls
 from ...lib import eetbUtils as eetbutil
-from ...lib import fusionAddInUtils as futil
+
+from .exporters.Eetb_CPLExporterBase import Eetb_CPLExporterBase
+from .exporters.Eetb_RawCPLExporter import Eetb_RawCPLExporter
+from .exporters.Eetb_EuroCircuitsCPLExporter import Eetb_EuroCircuitsCPLExporter
+from .exporters.Eetb_JLCPCBCPLExporter import Eetb_JLCPCBCPLExporter
+from .exporters.Eetb_MacrofabCPLExporter import Eetb_MacrofabCPLExporter
+
+
+class Eetb_ExportCPLDefaultOutputAttribute(Enum):
+    ROTATION_FIX = 'Rotation fix'
+    HORIZONTAL_FIX = 'Horizontal position fix'
+    VERTICAL_FIX = 'Vertical position fix'
+
 
 class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
 
@@ -48,22 +61,28 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         super().__init__(command_attributes, edit_user_script_command)
 
         # for now the query unit is always millimeter
-        self._query_unit = eetbutil.LengthUnits.MILLIMETER
+        query_unit = eetbutil.LengthUnits.MILLIMETER
 
-        self.default_attribute_mapping = [
-            # column to map to attribute    optional?
-            ('Rotation fix',             True),
-            ('Horizontal position fix',  True),
-            ('Vertical position fix',    True)
+        self._default_attribute_mapping: list[tuple[str, bool]] = [
+            # column to map to attribute                                optional?
+            (Eetb_ExportCPLDefaultOutputAttribute.ROTATION_FIX.value,    True),
+            (Eetb_ExportCPLDefaultOutputAttribute.HORIZONTAL_FIX.value,  True),
+            (Eetb_ExportCPLDefaultOutputAttribute.VERTICAL_FIX.value,    True)
         ]
-        self.macrofab_attribute_mapping = self.default_attribute_mapping.copy()
-        self.macrofab_attribute_mapping.append(('Populate',  True))
-        self.macrofab_attribute_mapping.append(('MPN',       True))
 
-        self.add_supported_format('Raw',            None,                               self.export_raw)
-        self.add_supported_format('EuroCircuits',   self.default_attribute_mapping,     self.export_EuroCircuits)
-        self.add_supported_format('JLCPCB',         self.default_attribute_mapping,     self.export_JLCPCB)
-        self.add_supported_format('Macrofab',       self.macrofab_attribute_mapping,    self.export_Macrofab, PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM)
+        # Instantiate all CPL exporters in the exporters directory
+        self._raw_exporter = Eetb_RawCPLExporter(self, query_unit)
+        self._exporters: list[Eetb_CPLExporterBase] = [
+            self._raw_exporter,
+            Eetb_EuroCircuitsCPLExporter(self, query_unit),
+            Eetb_JLCPCBCPLExporter(self, query_unit),
+            Eetb_MacrofabCPLExporter(self, query_unit)
+        ]
+
+        for exporter in self._exporters:
+            self.add_supported_format(exporter.format_name,
+                                      self._default_attribute_mapping + exporter.output_attributes, 
+                                      self._do_export, exporter.output_file_extension)
 
 
     def add_command_button_to_ui(self, commandDefinition: adsk.core.CommandDefinition):
@@ -84,414 +103,82 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         self.mapping_help.numRows = 6
         self.mapping_table.minimumVisibleRows = 3
 
-        # WORKAROUND - DON'T ENABLE THE USER SCRIPTS JUST YET, UNTIL A FORMAT IS DEFINED
-        self._add_format_button_input.isEnabled = False
 
     def get_user_script_input_data(self, filtered_part_data: list[dict], output_format: str) -> list[list[str]]:
-        """NOT IMPLEMENTED YET"""
-        # we should define a standard output format first
-        raise NotImplementedError('Not implemented yet')
-      
+        return self._raw_exporter.export(filtered_part_data, {})
 
-    def _apply_corrections(self, component: dict) -> tuple [float, float, float]:
-        """Applies corrections to the component's rotation, horizontal, and vertical position.
 
-        This function takes a component dictionary and applies any necessary corrections
-        to its rotation, horizontal, and vertical position values. It returns a tuple
-        containing the corrected values. This correction is only visible in the output
-        file, the electronics data is unchanged!
+    def on_format_selection_input_changed(self, inputs: adsk.core.CommandInputs):
+        """
+        Handles the change event for the format selection input.
+
+        This method is called when the user changes the selected export format
+        in the palette. It calls the base class implementation to show or hide
+        the appropriate attribute mapping controls based on the selected format.
+        In addition, it handles the warning shown for some formats
 
         Args:
-            component (dict): A dictionary representing a component with rotation,
-                              horizontal, and vertical position data.
+            inputs (adsk.core.CommandInputs): The command inputs object
+                                             containing all UI elements.
+        """
+        super().on_format_selection_input_changed(inputs)
+        
+        self.open_file_on_ok_chkbox.isEnabled = True
+        format_name = self.format_selection_input.selectedItem.name
+
+        # Notify the exporter that is selected
+        for exporter in self._exporters:
+            if format_name == exporter.format_name:
+                exporter.notify_selected()
+                break
+
+
+    #####################
+    # PRIVATE FUNCTIONS #
+    #####################
+
+    def _get_selected_attribute(self, bom_column_name_def: tuple[str, bool]) -> str:
+        """Retrieve the name of the selected attribute mapping for a given BOM column.
+
+        This method looks up the name of the attribute selected by the user in the
+        attribute mapping area for a given output column.
+
+        Args:
+            bom_column_name_def (tuple[str, bool]): A tuple where the first element
+                is the column name (str) and the second element is a boolean flag
+                indicating if the column is optional (True) or required (False).
 
         Returns:
-            tuple[float, float, float]: A tuple containing the corrected rotation,
-                                         horizontal position, and vertical position.
+            str: The attribute name selected by the user for the output column
         """
-        rotation_fix_used = self.get_selected_attribute(self.default_attribute_mapping[0]) != 'None'
-        horizontal_fix_used = self.get_selected_attribute(self.default_attribute_mapping[1]) != 'None'
-        vertical_fix_used = self.get_selected_attribute(self.default_attribute_mapping[2]) != 'None'
+        (cpl_column_name, isOptional) = bom_column_name_def
+        # Iterate through all rows in the mapping table
+        for rowIdx in range(0, self.mapping_table.rowCount):
+            # Get the label input (first column)
+            label_input = self.mapping_table.getInputAtPosition(rowIdx, 0)
+            if label_input is None or not isinstance(label_input, adsk.core.StringValueCommandInput):
+               raise TypeError(f"Unexpected input type for the attribute mapping row {rowIdx}, column 0")
 
-        # now handle the position/rotation fix
-        x = component['x']
-        y = component['y']
-        rot = component['angle']
-        top_side = not component.get('mirror', False)
-        rotation_fix = 0.0
+            if label_input.value == cpl_column_name:
+                # Get the dropdown input (second column)
+                dropdown_input = self.mapping_table.getInputAtPosition(rowIdx, 1)
+                if dropdown_input is None or not isinstance(dropdown_input, adsk.core.DropDownCommandInput):
+                    raise TypeError(f"Unexpected input type for the attribute mapping row {rowIdx}, column 1")
+                return dropdown_input.selectedItem.name
+        # If no matching row is found, return an empty string
+        return ""
+    
 
-        attributes = component.get('attributes',[])
-        fix_values = self.get_mapped_attribute_values(self.default_attribute_mapping, attributes)
-
-        if horizontal_fix_used and fix_values[1]:
-            try:
-                # First convert it to the units of the query
-                (value, unit) = eetbutil.parse_dimension_string(fix_values[1])
-                dx = eetbutil.convert_to_unit((value, unit), self._query_unit)
-
-                # Horizontal correction should be applied in the direction of the component's rotation
-                # But since we're correcting the centroid position, we need to account for rotation
-                # The offset should be applied in the component's local coordinate system
-                offset_x = float(dx) * math.cos(rot / 180 * math.pi)
-                offset_y = float(dx) * math.sin(rot / 180 * math.pi)
-                y += offset_y
-                if top_side:
-                    x += offset_x
+    def _do_export(self, selected_format, filtered_part_data: list[dict]) -> list[list[str]]:
+        # Find the exporter with the matching name and call its export function
+        for exporter in self._exporters:
+            if exporter.format_name == selected_format:
+                if exporter != self._raw_exporter:
+                    selected_attributes = {}
+                    for (column_name, isOptional) in self._default_attribute_mapping + exporter.output_attributes:
+                        selected_attributes[column_name] = self.get_selected_attribute((column_name, isOptional))
+                    return exporter.export(filtered_part_data, selected_attributes)
                 else:
-                    x -= offset_x # the board is mirrored, so compensate in the negative direction
-            except:
-                attr_name = self.get_selected_attribute(self.default_attribute_mapping[1])
-                self.ui.messageBox(f'{component['name']} has a horizontal fix defined in its "{attr_name}" attribute, but it is not a valid length! It is ignored and no horizontal correction is applied!',
-                                   'Horizontal fix parsing error', adsk.core.MessageBoxButtonTypes.OKButtonType, adsk.core.MessageBoxIconTypes.WarningIconType) # type: ignore
-
-
-        if vertical_fix_used and fix_values[2]:
-            try:
-                # First convert it to the units of the query
-                (value, unit) = eetbutil.parse_dimension_string(fix_values[2])
-                dy = eetbutil.convert_to_unit((value, unit), self._query_unit)
-
-                # Vertical correction should be applied perpendicular to the component's rotation
-                # In component's local coordinate system, this is 90 degrees from rotation
-                offset_x = dy * math.sin(rot / 180 * math.pi)
-                offset_y = dy * math.cos(rot / 180 * math.pi)
-                y += offset_y
-                if top_side:
-                    x -= offset_x  # Note: minus sign because we're going in the opposite direction
-                else:
-                    x += offset_x # the board is mirrored, so compensate in the positive direction
-            except:
-                attr_name = self.get_selected_attribute(self.default_attribute_mapping[2])
-                self.ui.messageBox(f'{component['name']} has a vertical fix defined in its "{attr_name}" attribute, but it is not a valid length! It is ignored and no vertical correction is applied!',
-                                   'Vertical fix parsing error', adsk.core.MessageBoxButtonTypes.OKButtonType, adsk.core.MessageBoxIconTypes.WarningIconType) # type: ignore
-
-
-        if rotation_fix_used and fix_values[0]:
-            rotation_fix = float(fix_values[0])
-            if rotation_fix < 0:
-                rotation_fix += 360.0
-        
-        rot += rotation_fix
-        while (rot >= 360.0):
-            rot -= 360.0
-
-        return (x, y, rot)
-
-
-    def _package_is_THT(self, package_name: str) -> bool | None:
-        """
-        Find the package provided as an input argument in the self.package_data
-        and iterate through its 'contacts'. If any of them is 'type'=='pad' then return true, else false.
-
-        Args:
-            package_name (str): The name of the package to search for.
-
-        Returns:
-            bool: True if any contact is of type 'pad', False otherwise.
-        """
-        # Find the package in self.package_data
-        package = next((pkg for pkg in self.package_data if pkg.get('name') == package_name), None)
-        if not package:
-            return None
-
-        # Iterate through the contacts
-        contacts = package.get('contacts', [])
-        for contact in contacts:
-            if contact.get('type') == 'pad':
-                return True
-        return False
-
-
-    def _get_package_bounding_box(self, package_name: str) -> tuple[float, float] | None:
-        """
-        Find the package in self.package_data and compute its bounding box size (width, height)
-        based on the 'contacts' (pads and smds).
-
-        Pads have 'x', 'y', 'diameter' properties (treated as circles).
-        Smds have 'x', 'y', 'dx', 'dy', and optionally 'angle' properties (rectangles, possibly rotated).
-
-        Args:
-            package_name (str): The name of the package to search for.
-
-        Returns:
-            tuple[float, float]: Width and height of the bounding box in self._query_unit, or None if package not found.
-        """
-        # Find the package in self.package_data
-        package = next((pkg for pkg in self.package_data if pkg.get('name') == package_name), None)
-        if not package:
-            return None
-
-        contacts = package.get('contacts', [])
-        if not contacts:
-            return None
-
-        min_x = float('inf')
-        max_x = float('-inf')
-        min_y = float('inf')
-        max_y = float('-inf')
-
-        for contact in contacts:
-            contact_type = contact.get('type')
-            x = contact.get('x', 0.0)
-            y = contact.get('y', 0.0)
-
-            if contact_type == 'pad':
-                # Treat as circle with diameter
-                diameter = contact.get('diameter', 0.0)
-                radius = diameter / 2.0
-                # Add the radius to all directions to get the bounding box
-                min_x = min(min_x, x - radius)
-                max_x = max(max_x, x + radius)
-                min_y = min(min_y, y - radius)
-                max_y = max(max_y, y + radius)
-            elif contact_type == 'smd':
-                # Treat as rectangle with dx, dy, and optional angle
-                dx = contact.get('dx', 0.0)
-                dy = contact.get('dy', 0.0)
-                angle = contact.get('angle', 0.0)  # in degrees
-
-                # Calculate the half dimensions
-                half_dx = dx / 2.0
-                half_dy = dy / 2.0
-
-                # If no rotation, simple case
-                if angle == 0.0:
-                    min_x = min(min_x, x - half_dx)
-                    max_x = max(max_x, x + half_dx)
-                    min_y = min(min_y, y - half_dy)
-                    max_y = max(max_y, y + half_dy)
-                else:
-                    # Rotate the rectangle corners to find the bounding box
-                    # Convert angle to radians
-                    angle_rad = math.radians(angle)
-                    cos_a = math.cos(angle_rad)
-                    sin_a = math.sin(angle_rad)
-
-                    # Rectangle corners in local coordinates (centered at origin)
-                    corners = [
-                        (-half_dx, -half_dy),  # bottom-left
-                        (half_dx, -half_dy),   # bottom-right
-                        (half_dx, half_dy),    # top-right
-                        (-half_dx, half_dy)    # top-left
-                    ]
-
-                    # Rotate and translate to global coordinates
-                    for cx, cy in corners:
-                        # Rotate
-                        rx = cx * cos_a - cy * sin_a
-                        ry = cx * sin_a + cy * cos_a
-                        # Translate to global position
-                        rx += x
-                        ry += y
-                        # Update bounding box
-                        min_x = min(min_x, rx)
-                        max_x = max(max_x, rx)
-                        min_y = min(min_y, ry)
-                        max_y = max(max_y, ry)
-
-        # Calculate width and height
-        width = max_x - min_x
-        height = max_y - min_y
-
-        return (width, height)
-
-
-    ###########################
-    # FAB SPECIFIC FORMATTING #
-    ###########################
-
-    def export_EuroCircuits(self, format_name: str, filtered_part_data: list[dict]) -> list[list[str]]:
-        """Exports component placement data in EuroCircuits format.
-
-        This function takes the filtered part data and formats it according to the EuroCircuits
-        specification. It includes component reference, value, package, position (X, Y), rotation,
-        and layer information. It also applies corrections to the output data, if the user specified
-        the required attributes for that.
-
-        Args:
-            format_name (str): The name of the format being exported (used for logging).
-            filtered_part_data (list[dict]): A list of dictionaries containing component data.
-
-        Returns:
-            list[list]: A list of lists representing the formatted data rows for EuroCircuits.
-        """
-        headers = ['Designator', 'Comment', 'Layer', 'Center-X(mm)', 'Center-Y(mm)', 'Rotation', 'Description']
-        # retrieve the correction mapping
-        cpl_data = [headers]
-        for component in filtered_part_data:
-            comment = component['value']
-            description = ''
-            for attribute in component.get('attributes',[]):
-                if attribute['name'] in ['DESCRIPTION', 'DESC']:
-                    description = attribute['value']
-                    break
-            (x, y , rot) = self._apply_corrections(component)
-
-            # add to the output
-            cpl_data.append([component['name'],
-                             comment, 'Bottom' if component['mirror'] else 'Top',
-                             f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}',
-                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}',
-                             f'{rot:.2f}',
-                             description])
-        return cpl_data
-
-
-    def export_JLCPCB(self, format_name: str, filtered_part_data: list[dict]) -> list[list[str]]:
-        """Exports component placement data in JLCPCB format.
-
-        This function takes the filtered part data and formats it according to the JLCPCB
-        specification. It includes component reference, value, package, position (X, Y), rotation,
-        and layer information. It also applies corrections to the output data, if the user specified
-        the required attributes for that.
-
-        Args:
-            format_name (str): The name of the format being exported (used for logging).
-            filtered_part_data (list[dict]): A list of dictionaries containing component data.
-
-        Returns:
-            list[list]: A list of lists representing the formatted data rows for JLCPCB.
-        """
-        headers = ['Designator', 'Mid X', 'Mid Y', 'Layer', 'Rotation']
-        cpl_data = [headers]
-        for component in filtered_part_data:
-            (x, y , rot) = self._apply_corrections(component)
-            top_side = component['mirror'] == False
-            if not top_side:
-                rot = (360 - rot)
-                rot = rot + 180
-                rot = rot % 360
-
-            # add to the output
-            cpl_data.append([component['name'], 
-                             f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
-                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
-                             'Top' if top_side else 'Bottom', 
-                             f'{round(rot)}'])
-        return cpl_data
-
-
-    def export_Macrofab(self, format_name: str, filtered_part_data: list[dict]) -> list[list[str]]:
-        """Exports component placement data in Macrofab format.
-
-        This function takes the filtered part data and formats it according to the Macrofab
-        specification. It includes component reference, value, package, position (X, Y), rotation,
-        layer information, populate flag, and MPN. It also applies corrections to the output data,
-        if the user specified the required attributes for that.
-
-        Since it exports to a custom file type, it needs to handle the file encoding, writing, and
-        configuration saving. 
-
-        Args:
-            format_name (str): The name of the format being exported (used for logging).
-            filtered_part_data (list[dict]): A list of dictionaries containing component data.
-
-        Returns:
-            list[list]: an empty list, ignored by the caller.
-        """
-        headers = ['#Designator', 'X-Loc', 'Y-Loc', 'Rotation', 'Side', 'Type', 'X-Size', 'Y-Size', 'Value', 'Footprint', 'Populate', 'MPN']
-        cpl_data = [headers]
-        num_default_attributes = len(self.default_attribute_mapping)
-        populated_used = self.get_selected_attribute(self.macrofab_attribute_mapping[num_default_attributes]) != 'None'
-        mpn_used = self.get_selected_attribute(self.macrofab_attribute_mapping[num_default_attributes + 1]) != 'None'
-        for component in filtered_part_data:
-            populate = ''
-            mpn = ''
-            width = 0.0
-            height = 0.0
-            (x, y , rot) = self._apply_corrections(component)
-            top_side = component['mirror'] == False
-            attributes = component.get('attributes', [])
-            isTHT = self._package_is_THT(component.get('package', ''))
-            bounding_box = self._get_package_bounding_box(component.get('package', ''))
-            if bounding_box is not None:
-                (width, height) = bounding_box
-            
-            if attributes:
-                mapped_values = self.get_mapped_attribute_values(self.macrofab_attribute_mapping, attributes)
-                populate = mapped_values[3]
-                mpn = mapped_values[4]
-            # add to the output
-            cpl_data.append([component['name'], f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
-                             f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
-                             f'{round(rot)}', 
-                             'T' if top_side else 'B', 
-                             '' if isTHT == None else '1' if isTHT == False else '2', 
-                             f'{eetbutil.convert_to_unit((width, self._query_unit), eetbutil.LengthUnits.MIL):.2f}' if bounding_box is not None else '', 
-                             f'{eetbutil.convert_to_unit((height, self._query_unit), eetbutil.LengthUnits.MIL):.2f}' if bounding_box is not None else '', 
-                             component['value'], component['package'], populate if populated_used else '1', mpn if mpn_used else ''])
-
-        # this format uses a custom file extension, so it is handled here
-        extension_filter = "XYRS files (*.XYRS)"
-
-        # Get the last used output file from ConfigManager
-        user_selection: dict = eetbutil.config_manager.get_document_option(self.document_id, self.command_id, format_name, {}) # type: ignore
-        
-        # Create a file dialog for saving results
-        fileDialog = self.ui.createFileDialog()
-        fileDialog.isMultiSelectEnabled = False
-        fileDialog.title = f"Save {format_name} Results"
-        fileDialog.filter = extension_filter
-        fileDialog.filterIndex = 0
-
-        if user_selection and 'last_output_dir' in user_selection and os.path.exists(user_selection['last_output_dir']):
-            fileDialog.initialDirectory = user_selection['last_output_dir'] if os.path.isdir(user_selection['last_output_dir']) else os.path.dirname(user_selection['last_output_dir'])
-        else:
-            fileDialog.initialDirectory = str(Path.home())
-        
-        dialogResult = fileDialog.showSave()
-        
-        if dialogResult == adsk.core.DialogResults.DialogOK:
-            output_file = fileDialog.filename
-            root, ext = os.path.splitext(output_file)
-            if ext != ".XYRS":
-                output_file += ".XYRS"
-
-            # Write the data to the file based on the format
-            file_data = self.format_data_by_extension(cpl_data, PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_TXT.value)
-            try:
-                with open(output_file, 'wb') as f:
-                    f.write(file_data)
-
-                self.log_to_console(f'Results saved to {output_file}')
-                self.save_config(format_name, os.path.dirname(output_file))
-            except IOError as e:
-                self.ui.messageBox(f"Error writing to file {output_file}: {e}")
-        
+                    return exporter.export(filtered_part_data, {})
+        # If the exporter is not found, return empty list
         return []
-
-
-    def export_raw(self, format_name: str, filtered_part_data: list[dict]) -> list[list[str]]:
-        """Exports component placement data in raw format.
-
-        This function takes the filtered part data and formats it as a list of lists,
-        where each inner list represents a row of data. The raw format includes
-        component reference, value, package, position (X, Y), rotation, and mirror
-        information. It does not apply any corrections to the output data
-
-        Args:
-            format_name (str): The name of the format being exported (used for logging).
-            filtered_part_data (list[dict]): A list of dictionaries containing component data.
-
-        Returns:
-            list[list]: A list of lists representing the formatted data rows for raw export.
-        """
-        headers = ['Designator', 'Value', 'Footprint', 'Center X', 'Center Y', 'Rotation', 'Side']
-        for attribute in self.attribute_list:
-            headers.append(attribute)
-        cpl_data = [headers]
-        for component in filtered_part_data:
-            row = [component['name'], 
-                   component['value'], 
-                   component['package'], 
-                   f'{eetbutil.convert_to_unit((component['x'], self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm', 
-                   f'{eetbutil.convert_to_unit((component['y'], self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm',
-                   f'{component['angle']:.2f}mm', 
-                   'Bottom' if component['mirror'] else 'Top']
-            attributes = component.get('attributes', [])
-            for attribute in self.attribute_list:
-                match = next((d for d in attributes if d.get('name', '') == attribute), None)
-                row.append(match['value'] if match is not None else '')
-                
-            cpl_data.append(row)
-        return cpl_data
