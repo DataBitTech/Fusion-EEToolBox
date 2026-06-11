@@ -142,6 +142,7 @@ class Eetb_AlignPackageXYSymmetricalCommand(CommandBase):
         
         # Get selected face
         package_ref: list[adsk.core.Point2D] = []
+        body: adsk.fusion.BRepBody = None # type: ignore
         for i in range(2):
             package_item = self._package_geometry_selection_input.selection(i).entity
             if isinstance(package_item, adsk.fusion.BRepFace):
@@ -178,13 +179,9 @@ class Eetb_AlignPackageXYSymmetricalCommand(CommandBase):
             return
         root = design.rootComponent
 
-        # Get the body and component
-        selected_entity = self._package_geometry_selection_input.selection(0).entity
-        if selected_entity is None or not isinstance(selected_entity, adsk.fusion.BRepFace) or\
-           not isinstance(selected_entity, adsk.fusion.BRepEdge) or\
-           not isinstance(selected_entity, adsk.fusion.BRepVertex):
-            raise TypeError("Selected entity must be a BRepFace, BRepEdge, or BRepVertex.")
-        body = selected_entity.body
+        # The body should already be saved
+        if not body:
+            raise TypeError('The parent body of the selected features could not be found')
         component = body.parentComponent
         transform_object = component if component and component.id != root.id else body
         
