@@ -1,0 +1,31 @@
+Electronics Extended Toolbox (EETB)
+Copyright (c) 2026 Pal Szabo
+
+This product includes software developed by third parties:
+
+* openpyxl
+  Version: 3.1.5
+  License: MIT License
+  Copyright (c) 2010-2024 openpyxl Contributors
+  Source: https://openpyxl.readthedocs.io
+
+* et_xmlfile
+  Version: 2.0.0
+  License: MIT License
+  Copyright (c) 2010-2015 openpyxl Contributors
+  Source: https://foss.heptapod.net/openpyxl/et_xmlfile
+
+* treelib
+  License: Apache License 2.0 (Commonly applied to this library)
+  Copyright (C) 2011 Brett Alistair Kromkamp
+  Copyright (C) 2012-2025 Xiaming Chen and other contributors
+  Source: https://github.com/chenxmj/treelib
+
+* six.py (included in treelib)
+  License: MIT License
+  Copyright (c) 2010-2024 Benjamin Peterson
+  Source: https://github.com/benjaminp/six
+
+* Autodesk Fusion 360 Add-In Utilities
+  License: Custom Autodesk License (Permission to use, copy, modify, and distribute)
+  Copyright 2022 by Autodesk, Inc.

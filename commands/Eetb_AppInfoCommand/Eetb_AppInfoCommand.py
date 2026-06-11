@@ -64,7 +64,7 @@ class Eetb_AppInfoCommand(CommandBase):
             <p><b>Version:</b> {self._version}</p>
             <p>This is an open-source Fusion 360 add-in designed to extend the capabilities of the Electronics workspace. It provides additional tools and utilities for electronic design and documentation.</p>
             
-            <p>Contributions are welcome! You can find the source code and contribute at our <a href="https://github.com/databittech/fusion-eettb-addon">GitHub repository</a>.</p>
+            <p>Contributions are welcome! You can find the source code and contribute at our <a href="https://github.com/DataBitTech/Fusion-EEToolBox">GitHub repository</a>.</p>
 
             <p>The project is licensed under the MIT License. See the LICENSE file in the repository for more details.</p>
 
@@ -102,4 +102,4 @@ class Eetb_AppInfoCommand(CommandBase):
         cmd.isOKButtonVisible = False
         cmd.cancelButtonText = 'Close'
 
-        inputs.addTextBoxCommandInput('info_text', '', self._info_text, 24, True)
+        inputs.addTextBoxCommandInput('info_text', '', self._info_text, 20, True)
