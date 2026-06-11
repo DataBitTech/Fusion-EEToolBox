@@ -100,7 +100,7 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
                                                  {'type': eetbutil.ExportDataType.LAYER_DATA.value, 'args': []}],
                                                  True) # use grid units
         self._layer_data = palette_init_data.get(eetbutil.ExportDataType.LAYER_DATA.value, [])
-        self._grid_unit = palette_init_data.get('unit', 'mm')
+        self._grid_unit = eetbutil.parse_length_unit(palette_init_data.get('unit', 'mm'))
 
         # Add a dummy layer with number 0 and name 'None' to the layer data
         layer_data = self._layer_data.copy()
@@ -535,11 +535,11 @@ class Eetb_ViaFenceCommand(PaletteCommandBase):
         """
         # Get the via diameter from event data or use a default
         via_drill_string = event_data.get('drill', '0.3 mm')
-        annular_ring = eetbutil.convert_to_unit((0.15, 'mm'), self._grid_unit)
+        annular_ring = eetbutil.convert_to_unit((0.15, eetbutil.LengthUnits.MILLIMETER), self._grid_unit)
         try:
             diameter_mm = eetbutil.convert_to_unit(eetbutil.parse_dimension_string(via_drill_string, self._grid_unit), self._grid_unit)
         except ValueError:
-            diameter_mm = eetbutil.convert_to_unit((0.3, 'mm'), self._grid_unit)
+            diameter_mm = eetbutil.convert_to_unit((0.3, eetbutil.LengthUnits.MILLIMETER), self._grid_unit)
             
         # Create the Eagle script
         script = ''
