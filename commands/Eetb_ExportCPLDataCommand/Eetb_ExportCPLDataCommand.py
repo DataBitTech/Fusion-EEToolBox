@@ -84,6 +84,9 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         self.mapping_help.numRows = 6
         self.mapping_table.minimumVisibleRows = 3
 
+        # WORKAROUND - DON'T ENABLE THE USER SCRIPTS JUST YET, UNTIL A FORMAT IS DEFINED
+        self._add_format_button_input.isEnabled = False
+
     def get_user_script_input_data(self, filtered_part_data: list[dict], output_format: str) -> list[list[str]]:
         """NOT IMPLEMENTED YET"""
         # we should define a standard output format first
@@ -406,8 +409,8 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
             
             if attributes:
                 mapped_values = self.get_mapped_attribute_values(self.macrofab_attribute_mapping, attributes)
-                populate = mapped_values[0]
-                mpn = mapped_values[1]
+                populate = mapped_values[3]
+                mpn = mapped_values[4]
             # add to the output
             cpl_data.append([component['name'], f'{eetbutil.convert_to_unit((x, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
                              f'{eetbutil.convert_to_unit((y, self._query_unit), eetbutil.LengthUnits.MIL):.2f}', 
@@ -439,7 +442,10 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
         dialogResult = fileDialog.showSave()
         
         if dialogResult == adsk.core.DialogResults.DialogOK:
-            output_file = fileDialog.filename + ".XYRS"
+            output_file = fileDialog.filename
+            root, ext = os.path.splitext(output_file)
+            if ext != ".XYRS":
+                output_file += ".XYRS"
 
             # Write the data to the file based on the format
             file_data = self.format_data_by_extension(cpl_data, PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_TXT.value)
@@ -482,7 +488,10 @@ class Eetb_ExportCPLDataCommand(PartDataExportCommandBase):
                    f'{eetbutil.convert_to_unit((component['y'], self._query_unit), eetbutil.LengthUnits.MILLIMETER):.3f}mm',
                    f'{component['angle']:.2f}mm', 
                    'Bottom' if component['mirror'] else 'Top']
+            attributes = component.get('attributes', [])
             for attribute in self.attribute_list:
-                row.append(component.get(attribute, ''))
+                match = next((d for d in attributes if d.get('name', '') == attribute), None)
+                row.append(match['value'] if match is not None else '')
+                
             cpl_data.append(row)
         return cpl_data

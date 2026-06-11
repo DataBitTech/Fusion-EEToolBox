@@ -543,7 +543,7 @@ class PartDataExportCommandBase(CommandBase):
             fabhouse_data = self._supported_formats[format_index]['function'](self.format_selection_input.selectedItem.name, filtered_part_data)
 
             # for user scripts and custom file extensions nothing more to do
-            if self._supported_formats[format_index]['built_in'] and self._supported_formats[format_index]['default_extension'] != PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM.value:
+            if self._supported_formats[format_index]['built_in'] and self._supported_formats[format_index]['default_extension'] != PartDataExportCommandBase.FileExtensions.FILE_EXTENSION_CUSTOM:
                 self._save_results_to_file(fabhouse_data)
             
         except Exception as e:
