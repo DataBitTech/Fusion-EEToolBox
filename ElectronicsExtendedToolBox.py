@@ -61,6 +61,11 @@ class CommandStartingHandler(adsk.core.ApplicationCommandEventHandler):
         app = adsk.core.Application.get()
         ui = app.userInterface
         try:
+            # if the group command is default on in the user settings, it preempts all commands
+            if eventArgs.commandId == 'Electron::Group':
+                eventArgs.isCanceled = True
+                return
+
             # the preferences command terminates immediately, so handle it possibly
             # having changed at the start of the next command
             if self.lastCommandId == 'PreferencesCommand':
