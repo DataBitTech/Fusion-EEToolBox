@@ -77,3 +77,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 This project uses 3rd party libraries -  see the [NOTICE](NOTICE) file for details.
 
 Thank you for all the community contributors for sharing their knowledge and code snippets!
+
+## Packaging a Fusion add-in release
+
+From the repository root, check out the release commit and run this command with Git (Bash or Git Bash). It packages the tracked runtime files under the folder name Fusion expects.
+
+```sh
+git archive --format=zip --prefix=ElectronicsExtendedToolBox/ --output=ElectronicsExtendedToolBox-universal.zip HEAD -- ElectronicsExtendedToolBox.manifest ElectronicsExtendedToolBox.py AddInIcon.svg DEFAULT_CONFIG.json NOTICE PRIVACY_POLICY.md commands config.py controls lib LICENSE
+```
+
+Upload `ElectronicsExtendedToolBox-universal.zip` as an asset of a stable GitHub Release. Use a numeric tag such as `v1.4.11` matching the version in `ElectronicsExtendedToolBox.manifest`.

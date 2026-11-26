@@ -1,6 +1,7 @@
 {
 	"autodeskProduct":	"Fusion",
 	"type":	"addin",
+	"id": "acd76f3c-0864-4af2-8034-a4588ba2a0fa",
 	"author":	"Pal Szabo",
 	"description":	{
 		"en":	"Extended toolbox with useful commands for the electronics workspace in Fusion"
